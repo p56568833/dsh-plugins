@@ -1,0 +1,32 @@
+{
+  "name": "dsh-todo-bar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "把输入框上方的「任务」卡片换成对话顶部的一条分段进度条：显示 3/5 和当前任务，点一下才展开完整清单，全部完成后变绿并自动收起。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "locale"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [],
+      "immediately": true
+    }
+  },
+  "license": "MIT"
+}

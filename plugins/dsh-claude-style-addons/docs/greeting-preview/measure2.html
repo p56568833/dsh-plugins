@@ -1,0 +1,25 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0}</style></head><body><div id=o></div>
+<script>
+const c=document.createElement('canvas').getContext('2d');
+const F='"GB18030 Bitmap"';
+const probe=(label,text,setup)=>{ c.font='400 20px '+F; if(setup) setup(c); return {label,text,w:Math.round(c.measureText(text).width*100)/100}; };
+const out=[];
+// 单字符宽度
+c.font='400 20px '+F;
+for (const [name,ch] of [['全角逗号 U+FF0C','，'],['半角逗号 U+002C',','],['全角句号 U+3002','。'],['普通空格 U+0020',' '],['窄空格 U+2009','\u2009'],['不换行空格 U+00A0','\u00A0'],['半角空格族 U+2002','\u2002']]) {
+  out.push({label:'单字宽 '+name, w:Math.round(c.measureText(ch).width*100)/100});
+}
+// 整句三种写法
+const base='过一半了';
+out.push({label:'A 全角逗号', w:Math.round(c.measureText(base+'，别慌').width)});
+out.push({label:'B 半角逗号', w:Math.round(c.measureText(base+', 别慌').width)});
+out.push({label:'C 普通空格', w:Math.round(c.measureText(base+' 别慌').width)});
+out.push({label:'C2 窄空格 U+2009', w:Math.round(c.measureText(base+'\u2009别慌').width)});
+out.push({label:'C3 不换行空格', w:Math.round(c.measureText(base+'\u00A0别慌').width)});
+out.push({label:'C4 半角空格 U+2002', w:Math.round(c.measureText(base+'\u2002别慌').width)});
+out.push({label:'D 无分隔（对照）', w:Math.round(c.measureText(base+'别慌').width)});
+// letter-spacing 能否真的压窄空格
+c.font='400 20px '+F; c.letterSpacing='-6px';
+out.push({label:'C+letterSpacing -6px', w:Math.round(c.measureText(base+' 别慌').width)});
+document.getElementById('o').textContent=JSON.stringify(out);
+</script></body></html>

@@ -1,0 +1,4 @@
+# Host half of dsh-cost-balance. Inserted into the profile tree by this patch.
+- insert:
+    - id: cost-balance
+      name: dsh-cost-balance

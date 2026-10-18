@@ -1,0 +1,32 @@
+{
+  "name": "dsh-market-sidebar",
+  "icon": "./icon.png",
+  "version": "0.1.0",
+  "private": true,
+  "description": "在 DSH 侧边栏「插件」下面加「插件市场」入口，并在它下面加「订阅」入口（直接显示设置里的订阅页）。「账号与余额」入口的实现保留但默认关闭 —— 装了 dsh-balance-widget 之后余额已常驻侧栏页脚。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "verify.mjs"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [],
+      "immediately": true
+    }
+  }
+}

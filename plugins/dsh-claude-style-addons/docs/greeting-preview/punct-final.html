@@ -1,0 +1,47 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>
+body{margin:0;padding:28px 32px;background:#faf9f5;color:#141413;font-family:-apple-system,sans-serif}
+h1{font-size:13.5px;margin:0 0 4px}.s{font-size:11.5px;color:#8b877e;margin:0 0 20px;line-height:1.7}
+.row{margin:0 0 20px}
+.lbl{font-size:11px;color:#8b877e;margin-bottom:6px}
+.headline{display:flex;align-items:center;gap:13px;font-size:20px;line-height:26px;font-weight:500}
+.fish{flex:none;width:21px;height:21px;display:inline-flex;align-items:center;justify-content:center}
+.mono{font-family:"GB18030 Bitmap";font-weight:400}
+.pill{display:inline-block;font-size:10px;padding:1px 6px;border-radius:99px;background:#eee9e0;color:#6b6a66;margin-left:8px}
+.pill.bad{background:#f6dcd7;color:#8c3a28}.pill.ok{background:#dcecdc;color:#2e6b45}
+.rule{margin:22px 0 18px;border-top:1px solid #e7e4dc}
+</style></head><body>
+<h1>标点定案 · 点阵下逐条对比</h1>
+<p class="s">全部 20px / 行高 26px / 点阵 / 鱼标间距 13px。<b>Ａ 和 Ｄ 的字符宽度完全一样（都是 20px）</b>，差别只在那一个字形。</p>
+
+<div class="row">
+  <div class="lbl">Ａ 全角逗号（现状）<span class="pill bad">曲线字形，和方格字不搭</span></div>
+  <div class="headline"><span class="fish">🐳</span><span class="mono">过一半了，别慌</span></div>
+</div>
+
+<div class="row">
+  <div class="lbl">Ｄ 普通空格（我第一版）<span class="pill bad">空隙和逗号一样宽(20px)，显得是"断开"而不是"停顿"</span></div>
+  <div class="headline"><span class="fish">🐳</span><span class="mono">过一半了 别慌</span></div>
+</div>
+
+<div class="row">
+  <div class="lbl">Ｅ 窄空格 U+2009（4px）<span class="pill ok">推荐：无标点、全靠格子，但有明确停顿</span></div>
+  <div class="headline"><span class="fish">🐳</span><span class="mono">过一半了&#8201;别慌</span></div>
+</div>
+
+<div class="row">
+  <div class="lbl">Ｆ 更宽一档：半角空格 U+2002（10px）<span class="pill">停顿更明显，但空隙偏大</span></div>
+  <div class="headline"><span class="fish">🐳</span><span class="mono">过一半了&#8194;别慌</span></div>
+</div>
+
+<div class="row">
+  <div class="lbl">Ｇ 三字以内不断句（「月亮不睡我不睡」这类本来就不需要分隔）<span class="pill ok">保持原样</span></div>
+  <div class="headline"><span class="fish">🐳</span><span class="mono">月亮不睡我不睡</span></div>
+</div>
+
+<div class="rule"></div>
+<div class="lbl" style="margin-bottom:14px">Ｅ 方案在几条长句上的实测（空格宽度 4px）</div>
+<div class="headline"><span class="fish">🐳</span><span class="mono">早啊主人&#8201;本鲸等你半天了</span></div>
+<div class="headline" style="margin-top:11px"><span class="fish">🐳</span><span class="mono">这么晚还醒着&#8201;咱俩都不正常</span></div>
+<div class="headline" style="margin-top:11px"><span class="fish">🐳</span><span class="mono">夜里好&#8201;烁丞&#8201;我陪你游</span></div>
+<div class="headline" style="margin-top:11px"><span class="fish">🐳</span><span class="mono">中午了&#8201;主人你吃了吗</span></div>
+</body></html>

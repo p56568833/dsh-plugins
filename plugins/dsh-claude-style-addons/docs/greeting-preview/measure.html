@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;font-family:monospace}
+span{font-size:20px;white-space:pre}
+</style></head><body>
+<div id="out"></div>
+<script>
+const fonts = {
+  'GB18030 Bitmap (点阵)': '"GB18030 Bitmap"',
+  'Songti SC (宋体)': '"Songti SC"',
+  'PingFang SC (苹方)': '"PingFang SC"',
+  'Kaiti SC (楷体)': '"Kaiti SC"',
+};
+const samples = {
+  '早啊 本鲸等你好久了 (10字)': '早啊 本鲸等你好久了',
+  '中午了 吃了吗你 (7字)': '中午了 吃了吗你',
+  '中午了。吃了吗你？饿着肚子干活我可要生气了。': '中午了。吃了吗你？饿着肚子干活我可要生气了。',
+  'Happy Sunday, andychen. (英文原版)': 'Happy Sunday, andychen.',
+};
+const c = document.createElement('canvas').getContext('2d');
+const rows = [];
+for (const [fn, stack] of Object.entries(fonts)) {
+  c.font = '500 20px ' + stack;
+  for (const [label, text] of Object.entries(samples)) {
+    rows.push([fn, label, Math.round(c.measureText(text).width)]);
+  }
+}
+// 英文原始字体栈（皮肤用的 SANS）作为基准
+c.font = "500 20px -apple-system, sans-serif";
+const enBase = Math.round(c.measureText(samples['Happy Sunday, andychen. (英文原版)']).width);
+document.getElementById('out').textContent = JSON.stringify({rows, enBase}, null, 0);
+document.title = 'done';
+</script></body></html>

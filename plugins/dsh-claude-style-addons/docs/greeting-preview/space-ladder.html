@@ -1,0 +1,35 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>
+body{margin:0;padding:26px 30px;background:#faf9f5;color:#141413;font-family:-apple-system,sans-serif}
+h1{font-size:13.5px;margin:0 0 4px}.s{font-size:11px;color:#8b877e;margin:0 0 18px;line-height:1.6}
+table{border-collapse:collapse}
+td{padding:7px 0;vertical-align:middle}
+.td-lbl{font-size:10.5px;color:#8b877e;padding-right:16px;white-space:nowrap;font-family:ui-monospace,monospace}
+.mono{font-family:"GB18030 Bitmap";font-weight:400;font-size:20px;line-height:28px;white-space:nowrap}
+.fish{width:21px;height:21px;display:inline-block;vertical-align:-4px}
+.hl{color:#2e6b45;font-weight:600}
+</style></head><body>
+<h1>分隔宽度阶梯 · 点阵 20px</h1>
+<p class="s">同一句话，只换分隔字符。<span class="hl">绿色</span>是我准备选的那档。每一格左边都是鱼标，方便看整体。</p>
+<table>
+<tr><td class="td-lbl">全角逗号 20px</td><td><span class="fish">🐳</span> <span class="mono">早啊主人，本鲸等你半天了</span></td></tr>
+<tr><td class="td-lbl">普通空格 20px</td><td><span class="fish">🐳</span> <span class="mono">早啊主人 本鲸等你半天了</span></td></tr>
+<tr><td class="td-lbl"><span class="hl">U+2002 半角空格 10px</span></td><td><span class="fish">🐳</span> <span class="mono">早啊主人&#8194;本鲸等你半天了</span></td></tr>
+<tr><td class="td-lbl">U+2009 窄空格 4px</td><td><span class="fish">🐳</span> <span class="mono">早啊主人&#8201;本鲸等你半天了</span></td></tr>
+<tr><td class="td-lbl">无分隔 0px</td><td><span class="fish">🐳</span> <span class="mono">早啊主人本鲸等你半天了</span></td></tr>
+</table>
+
+<h1 style="margin-top:26px">短句上的效果（7 字）</h1>
+<table>
+<tr><td class="td-lbl">全角逗号 20px</td><td><span class="fish">🐳</span> <span class="mono">过一半了，别慌</span></td></tr>
+<tr><td class="td-lbl">普通空格 20px</td><td><span class="fish">🐳</span> <span class="mono">过一半了 别慌</span></td></tr>
+<tr><td class="td-lbl"><span class="hl">U+2002 半角空格 10px</span></td><td><span class="fish">🐳</span> <span class="mono">过一半了&#8194;别慌</span></td></tr>
+<tr><td class="td-lbl">U+2009 窄空格 4px</td><td><span class="fish">🐳</span> <span class="mono">过一半了&#8201;别慌</span></td></tr>
+</table>
+
+<h1 style="margin-top:26px">三段式（夜里那条：「夜里好，烁丞，我陪你游」）</h1>
+<table>
+<tr><td class="td-lbl">全角逗号 20px</td><td><span class="fish">🐳</span> <span class="mono">夜里好，烁丞，我陪你游</span></td></tr>
+<tr><td class="td-lbl"><span class="hl">U+2002 10px</span></td><td><span class="fish">🐳</span> <span class="mono">夜里好&#8194;烁丞&#8194;我陪你游</span></td></tr>
+<tr><td class="td-lbl">U+2009 4px</td><td><span class="fish">🐳</span> <span class="mono">夜里好&#8201;烁丞&#8201;我陪你游</span></td></tr>
+</table>
+</body></html>

@@ -1,0 +1,304 @@
+# dsh-balance-widget 0.6.3 — 会话锚定修复 + 子代理成本并入「今日·本会话」
+# 适用：DSH 0.2.x（桌面版 0.2.1-rc.2 实测）
+# 应用：patch -p1 -d ~/.dsh/profiles/desktop/node_modules/dsh-balance-widget < 本文件
+# 说明：升级/重装插件后需要重新应用；补丁只改 lib/index.js 与 lib/client.js
+
+diff -ruN a/lib/client.js b/lib/client.js
+--- a/lib/client.js	2026-10-18 01:53:50
++++ b/lib/client.js	2026-10-18 01:53:50
+@@ -230,8 +230,13 @@
+ 			const [popPos, setPopPos] = (0, react.useState)(null);
+ 			// The currently selected session id (the session the user is viewing).
+ 			// This anchors "today · this workspace" to the actual current workspace.
++			// DSH 0.2.x removed the `current` field from the sessions snapshot;
++			// the current session is the one the main view retains.
+ 			const currentSessionId = typeof useSessions === "function"
+-				? (0, useSessions)((s) => s.current)
++				? (0, useSessions)((s) => {
++					const row = Object.values(s.byId ?? {}).find((session) => (session.retainedBy?.mainView ?? 0) > 0);
++					return row?.id;
++				})
+ 				: void 0;
+ 			/** Fetch today's costs (workspace + all) from the dual-value route. */
+ 			const fetchTodayCosts = async () => {
+@@ -553,8 +558,8 @@
+ 			"todayAll": "今日·所有工作区",
+ 			"explain.aria": "解释",
+ 			"explain.balance": "DeepSeek 账户可用余额，实时查询官方接口。",
+-			"explain.lastPrompt": "最近活跃会话的最后一个问题（含 AI 回复）的费用估算。",
+-			"explain.todaySession": "当前会话今天产生的费用估算（从会话开始累计到今天）。",
++			"explain.lastPrompt": "当前会话最后一个问题（含 AI 回复及该轮子代理）的费用估算。",
++			"explain.todaySession": "当前会话今天产生的费用估算（含该会话派生的子代理/团队成员）。",
+ 			"explain.todayWs": "当前工作区今天所有会话的费用合计估算。",
+ 			"explain.todayAll": "所有工作区今天所有会话的费用合计估算（含其他项目）。",
+ 			"warn.title.1": "余额不足 ¥5，建议及时充值",
+@@ -584,8 +589,8 @@
+ 			"todayAll": "Today · all workspaces",
+ 			"explain.aria": "Explain",
+ 			"explain.balance": "DeepSeek account balance, fetched live from the official API.",
+-			"explain.lastPrompt": "Estimated cost of the latest question (incl. the AI reply) in the most recent session.",
+-			"explain.todaySession": "Estimated cost of today's usage in the current session.",
++			"explain.lastPrompt": "Estimated cost of the last question in the current session (incl. the reply and that turn's subagents).",
++			"explain.todaySession": "Estimated cost of today's usage in the current session, including subagents/team members it spawned.",
+ 			"explain.todayWs": "Estimated total cost of today's sessions in the current workspace.",
+ 			"explain.todayAll": "Estimated total cost of today's sessions across all workspaces.",
+ 			"warn.title.1": "Balance below ¥5, consider topping up",
+diff -ruN a/lib/index.js b/lib/index.js
+--- a/lib/index.js	2026-10-18 01:53:50
++++ b/lib/index.js	2026-10-18 01:53:50
+@@ -653,6 +653,148 @@
+ 	return void 0;
+ }
+ 
++/**
++ * Read one session log's header (the first JSONL line) without decoding the
++ * whole file. DSH appends one zstd frame per flush and the header always sits
++ * in frame 1, so a bounded read keeps delegated-session discovery cheap even
++ * for multi-megabyte logs. Falls back to the full multi-frame decode when the
++ * header is not recoverable from the head.
++ */
++const sessionHeaderCache = new Map();
++
++async function readSessionHeader(path, mtimeMs) {
++	const hit = sessionHeaderCache.get(path);
++	if (hit !== void 0 && hit.mtimeMs === mtimeMs) return hit.header;
++	const fs = await awaitImportFs();
++	let header = null;
++	try {
++		const handle = await fs.promises.open(path, "r");
++		try {
++			const buffer = Buffer.alloc(64 * 1024);
++			const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
++			const head = buffer.subarray(0, bytesRead);
++			if (head.indexOf(ZSTD_MAGIC) === 0) {
++				const zlib = await import("node:zlib");
++				if (typeof zlib.zstdDecompressSync === "function") {
++					const firstFrame = zlib.zstdDecompressSync(head).toString("utf8");
++					const parsed = JSON.parse(firstFrame.split("\n")[0]);
++					if (parsed !== null && typeof parsed === "object") header = parsed;
++				}
++			}
++		} finally {
++			await handle.close();
++		}
++	} catch {
++		header = null;
++	}
++	if (header === null) {
++		const full = await decompressSession(path);
++		if (full.ok) {
++			try {
++				const parsed = JSON.parse(full.text.split("\n")[0]);
++				if (parsed !== null && typeof parsed === "object") header = parsed;
++			} catch { /* the first line is not a session header */ }
++		}
++	}
++	if (sessionHeaderCache.size >= SESSION_PARSE_CACHE_MAX) sessionHeaderCache.clear();
++	sessionHeaderCache.set(path, { mtimeMs, header });
++	return header;
++}
++
++/**
++ * Parent → children session index built from log headers. A delegated session
++ * (subagent / team member) writes `parentSession` in its header, so the parent
++ * never has to be told who it spawned. Cached per file by mtime; an unchanged
++ * tree only pays the directory walk plus one stat per log.
++ */
++async function collectSubagentIndex() {
++	const fs = await awaitImportFs();
++	const childrenByParent = new Map();
++	for (const file of collectNewestSessionLogs(fs)) {
++		let mtimeMs;
++		try {
++			mtimeMs = fs.statSync(file).mtimeMs;
++		} catch {
++			continue;
++		}
++		const header = await readSessionHeader(file, mtimeMs);
++		if (header === null || typeof header.id !== "string" || header.id === "") continue;
++		if (typeof header.parentSession !== "string" || header.parentSession === "") continue;
++		// A fork / seeded copy also names a parentSession but is a whole separate
++		// conversation: only delegated sessions count toward the parent's cost.
++		const delegated = header.origin === "subagent"
++			|| (header.isSeeded !== true
++				&& typeof header.delegationDepth === "number"
++				&& header.delegationDepth >= 1);
++		if (!delegated) continue;
++		const parent = normalizeSessionId(header.parentSession);
++		const bucket = childrenByParent.get(parent) ?? [];
++		bucket.push({ id: normalizeSessionId(header.id), path: file, mtimeMs });
++		childrenByParent.set(parent, bucket);
++	}
++	return childrenByParent;
++}
++
++/** Every descendant session (children, grandchildren, …) of one session id. */
++function collectDescendants(childrenByParent, rootSessionId) {
++	const root = normalizeSessionId(rootSessionId);
++	const found = [];
++	const seen = new Set([root]);
++	const queue = [root];
++	while (queue.length > 0) {
++		const current = queue.shift();
++		for (const child of childrenByParent.get(current) ?? []) {
++			if (seen.has(child.id)) continue;
++			seen.add(child.id);
++			found.push(child);
++			queue.push(child.id);
++		}
++	}
++	return found;
++}
++
++/** Highest turn number present in a sample list (-1 when empty). */
++function lastTurnOf(samples) {
++	let lastTurn = -1;
++	for (const sample of samples) if (sample.turn > lastTurn) lastTurn = sample.turn;
++	return lastTurn;
++}
++
++/** Earliest sample instant of one turn, or undefined when the turn has none. */
++function firstSampleTimeOfTurn(samples, turn) {
++	let earliest;
++	for (const sample of samples) {
++		if (sample.turn !== turn) continue;
++		const time = sample.time ?? 0;
++		if (earliest === void 0 || time < earliest) earliest = time;
++	}
++	return earliest;
++}
++
++/** Merge two {cost,inputTokens,outputTokens} totals. */
++function mergeTotals(target, extra) {
++	return {
++		cost: target.cost + extra.cost,
++		inputTokens: target.inputTokens + extra.inputTokens,
++		outputTokens: target.outputTokens + extra.outputTokens
++	};
++}
++
++/** Price the samples at or after one instant (a delegate's share of a turn). */
++function samplesCostSince(samples, sinceMs) {
++	let total = { cost: 0, inputTokens: 0, outputTokens: 0 };
++	for (const sample of samples) {
++		if ((sample.time ?? 0) < sinceMs) continue;
++		const tokens = sampleTokens(sample);
++		total = mergeTotals(total, {
++			cost: sampleCost(sample),
++			inputTokens: tokens.input,
++			outputTokens: tokens.output
++		});
++	}
++	return total;
++}
++
+ let _fs;
+ function awaitImportFs() {
+ 	if (_fs === void 0) _fs = import("node:fs");
+@@ -723,6 +865,10 @@
+ 	let currentTurn = 0;
+ 	let cwd = void 0;
+ 	let title = void 0;
++	let sessionId = void 0;
++	let parentSession = void 0;
++	/** First start instant per turn — the window a delegated turn's children fall in. */
++	const turnStarts = new Map();
+ 	for (const line of text.split("\n")) {
+ 		if (line === "") continue;
+ 		let event;
+@@ -734,10 +880,13 @@
+ 		const type = event.type;
+ 		if (type === "session") {
+ 			cwd = event.cwd;
++			sessionId = event.id;
++			parentSession = event.parentSession;
+ 		} else if (type === "session/title") {
+ 			title = event.data?.title ?? title;
+ 		} else if (type === "turn/start") {
+ 			currentTurn = event.data?.turn ?? currentTurn;
++			if (!turnStarts.has(currentTurn)) turnStarts.set(currentTurn, event.time ?? Date.now());
+ 		} else if (type === "request/header") {
+ 			currentModel = event.data?.header?.config?.model ?? currentModel;
+ 		} else if (type === "assistant/message") {
+@@ -761,7 +910,7 @@
+ 			});
+ 		}
+ 	}
+-	return { samples, cwd, title };
++	return { samples, cwd, title, sessionId, parentSession, turnStarts };
+ }
+ 
+ /** Cost of the last turn (the most recent user prompt) in one session file. */
+@@ -1051,8 +1200,47 @@
+ 					return;
+ 				}
+ 				const parsed = parseSessionUsages(result.text);
+-				const last = lastTurnCost(parsed.samples);
+-				const todaySession = todaySessionCost(parsed.samples);
++				// Session id from the file path (…/session-<id>/session[.vN].jsonl.zstd),
++				// falling back to the header id for non-standard directory names.
++				let fileSessionId = void 0;
++				const sidMatch = file.match(/session-([0-9a-f-]+)/);
++				if (sidMatch !== null) fileSessionId = sidMatch[1];
++				const sessionKey = normalizeSessionId(fileSessionId ?? parsed.sessionId ?? sessionId);
++
++				// Delegated sessions (subagents / team members) are separate logs
++				// whose header names this session as `parentSession`; their usage
++				// is not in this file. The workspace and all-workspaces totals
++				// already walk every log, so counting descendants here keeps
++				// "this session" inside "this workspace" instead of under-reporting.
++				let delegatedToday = { cost: 0, inputTokens: 0, outputTokens: 0 };
++				let delegatedLastPrompt = { cost: 0, inputTokens: 0, outputTokens: 0 };
++				let delegatedCount = 0;
++				try {
++					const childrenByParent = await collectSubagentIndex();
++					const descendants = collectDescendants(childrenByParent, sessionKey);
++					if (descendants.length > 0) {
++						// "Last prompt" is the delegating turn: children that ran
++						// before that turn started belong to earlier prompts.
++						const lastTurn = lastTurnOf(parsed.samples);
++						const turnStart = lastTurn < 0
++							? Infinity
++							: (parsed.turnStarts.get(lastTurn)
++								?? firstSampleTimeOfTurn(parsed.samples, lastTurn)
++								?? Infinity);
++						const parsedChildren = await Promise.all(
++							descendants.map((child) => parseSessionFileCached(child.path, child.mtimeMs))
++						);
++						for (const child of parsedChildren) {
++							if (child === null || child === void 0) continue;
++							delegatedCount += 1;
++							delegatedToday = mergeTotals(delegatedToday, todaySessionCost(child.samples));
++							delegatedLastPrompt = mergeTotals(delegatedLastPrompt, samplesCostSince(child.samples, turnStart));
++						}
++					}
++				} catch { /* discovery is best-effort; never fail the cost route */ }
++
++				const last = mergeTotals(lastTurnCost(parsed.samples), delegatedLastPrompt);
++				const todaySession = mergeTotals(todaySessionCost(parsed.samples), delegatedToday);
+ 				// Current peak/off-peak state + price tier for the configured model.
+ 				const now = new Date();
+ 				const peakActive = isPeak(now);
+@@ -1065,10 +1253,6 @@
+ 					const segments = parsed.cwd.split("/").filter((s) => s !== "");
+ 					workspaceName = segments.length > 0 ? segments[segments.length - 1] : parsed.cwd;
+ 				}
+-				// Session id from the file path (…/session-<id>/session[.vN].jsonl.zstd).
+-				let fileSessionId = void 0;
+-				const sidMatch = file.match(/session-([0-9a-f-]+)/);
+-				if (sidMatch !== null) fileSessionId = sidMatch[1];
+ 				writeJson(res, 200, {
+ 					lastPrompt: last,
+ 					todaySession,
+@@ -1076,6 +1260,11 @@
+ 					title: parsed.title,
+ 					workspaceName,
+ 					sessionId: fileSessionId,
++					subagents: {
++						count: delegatedCount,
++						todayCost: delegatedToday.cost,
++						lastPromptCost: delegatedLastPrompt.cost
++					},
+ 					peak: {
+ 						active: peakActive,
+ 						inputMiss: table.inputMiss,

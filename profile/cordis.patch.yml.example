@@ -1,0 +1,97 @@
+# Your patch layer for this dsh profile, applied after every bundle layer:
+# a top-level YAML array of loader patch entries (id-targeted config
+# overrides, disables, and insert lists; `!!js` expressions allowed).
+- id: ui-settings-general
+  name: "@deepseek-ai/dsh-client-ui-settings-general"
+  config:
+    welcomeNoticeVersion: 2026-08-13.1
+- id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  config:
+    provider: deepseek-account
+    model: deepseek-flash
+    reasoningEffort: max
+- id: ui-chat
+  name: "@deepseek-ai/dsh-client-ui-chat"
+  config:
+    transcriptView: standard
+    performanceUsage: detailed
+- id: ui-settings
+  name: "@deepseek-ai/dsh-client-ui-settings"
+  config:
+    enabled: true
+- id: ui-settings-account
+  name: "@deepseek-ai/dsh-client-ui-settings-account"
+  config:
+    version: 1
+    step: done
+    purpose: development
+    process: standard
+    completion: completed
+    usage: detailed
+    developerTools: true
+- id: cost-balance
+  disabled: false
+- id: subagent-model-selection-settings
+  name: "@deepseek-ai/dsh-tool-subagent/model-selection-settings"
+  config:
+    enabled: true
+    allowedModels:
+      - provider: deepseek-official
+        model: deepseek-flash
+      - provider: deepseek-account
+        model: deepseek-flash
+- id: better-sidebar
+  name: dsh-better-sidebar
+  config:
+    tabsEnabled:
+      git: true
+- id: agent-preset-registry
+  name: "@deepseek-ai/dsh-agent-preset-registry"
+  config:
+    default: standard
+    selectedDefault: standard
+- id: ui-skin-claude-style
+  name: dsh-claude-style
+  config:
+    brand: deepseek
+    brandName: ""
+    motion: full
+    collapseFooter: false
+    autoPopover: off
+    composerScope: all
+    banLocale: zh
+    homeLayout: studio
+    palette: claude
+    mascot: crab
+- id: image-gen
+  name: dsh-image-gen
+  config:
+    provider: chatgpt-sub
+- id: claude-style-addons
+  name: dsh-claude-style-addons
+  config:
+    greetingFont: pixel
+    mascotVariant: deepy
+    keepBalanceCard: false
+- id: permission
+  name: "@deepseek-ai/dsh-permission-presets"
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+    defaultPreset: danger-full-access
+
+# 2026-09-26: 触发一次 patch 重算，让新装的 dsh-plugin-l10n-zh 立即挂载
+# 2026-10-06: approval-clear（把「等待审批」卡片换成说人话的版本）不需要在这里写行——
+#   它由 package.json 的 dsh.profile.bundles 拉起来，行本身来自包内的 cordis.patch.yml。
+#   停用：把 dsh.profile.bundles 里的 dsh-approval-clear 删掉，或在「设置 → 插件」里关掉。
+
+# 2026-10-17: dshmarket 升到 1.66.35，修桌面端「更新插件市场」报 already-installed 的半卸载问题

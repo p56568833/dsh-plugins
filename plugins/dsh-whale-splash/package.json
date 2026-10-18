@@ -1,0 +1,28 @@
+{
+  "name": "dsh-whale-splash",
+  "version": "0.2.0",
+  "private": true,
+  "description": "像素风开场动画：DeepSeek 鲸鱼标拼好、等加载，主界面好了重组成 dsh-claude-style 正在用的那只吉祥物（Clawd 螃蟹 / Deepy），再翻个跟头落回它原位交班。只在打开 DSH 时播，刷新不播。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "assets",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "verify": "node verify.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}

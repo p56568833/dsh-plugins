@@ -1,0 +1,24 @@
+/* dsh-whale-splash —— 开场层样式（宿主插件塞进 index.html 的 <head>，收尾时由 splash.js 移除）。
+   画面全部画在 canvas 上；这里只管：整层盖住、底色（浅 / 深）、开场期间先藏起真吉祥物。 */
+
+#dwsp {
+  --dwsp-canvas: #f7f9ff;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: none;
+  cursor: default;
+}
+@media (prefers-color-scheme: dark) {
+  #dwsp { --dwsp-canvas: #14161c; }
+}
+/* 只有「这次是打开 DSH」时早脚本才挂 dwsp-boot；刷新时整层不出现 */
+html.dwsp-boot #dwsp { display: block; }
+
+/* JS 跑起来之前先由这层纯色顶着，canvas 第一帧画好就把它摘掉 */
+#dwsp .dwsp-veil { position: absolute; inset: 0; background: var(--dwsp-canvas); }
+#dwsp .dwsp-cv { position: absolute; left: 0; top: 0; image-rendering: pixelated; }
+
+/* 开场期间先把真吉祥物藏起来（只动 opacity，不碰它自己的 visibility / data-ready），落地那一格再放出来。
+   螃蟹（Clawd）和鲸鱼（Deepy）都是 dsh-claude-style 的吉祥物，谁在场就藏谁。 */
+html.dwsp-hold body[data-dsh-claude-style] :is(.dsh-claude-deepy, .dsh-claude-crab) { opacity: 0 !important; }

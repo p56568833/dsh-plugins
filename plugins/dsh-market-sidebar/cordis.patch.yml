@@ -1,0 +1,5 @@
+# dsh bundle patch：把这一行插进 profile 的插件树。
+# 行 id `market-sidebar` 是给 profile 的 cordis.patch.yml / 插件页按 id 定位用的。
+- insert:
+    - id: market-sidebar
+      name: dsh-market-sidebar

@@ -1,0 +1,40 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>
+body{margin:0;padding:30px 34px;background:#faf9f5;color:#141413;font-family:-apple-system,sans-serif}
+h1{font-size:13.5px;margin:0 0 4px}.s{font-size:11.5px;color:#8b877e;margin:0 0 22px;line-height:1.7}
+.hero{width:672px;margin:0 0 26px}
+.lbl{font-size:11px;color:#8b877e;margin-bottom:6px}
+/* 宿主的 headline 容器：鱼标 + 标题组是兄弟，gap 决定间距 */
+.headline{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;font-size:20px;font-weight:500;line-height:26px;gap:8px}
+.headline.wide{gap:13px}
+.fish{flex:none;width:21px;height:21px;display:inline-flex;align-items:center;justify-content:center}
+.mono{font-family:"GB18030 Bitmap";font-weight:400}
+.bad{border-left:3px solid #c0392b;padding-left:12px}
+.good{border-left:3px solid #2e8b57;padding-left:12px}
+.pill{display:inline-block;font-size:10px;padding:1px 6px;border-radius:99px;background:#eee9e0;color:#6b6a66;margin-left:8px}
+</style></head><body>
+<h1>鱼标间距 + 逗号 · 改前 / 改后</h1>
+<p class="s">用宿主的真实结构还原（鱼标与文字是 <code>headline</code> 容器下的两个兄弟，间距由容器 gap 决定）。字号 20px / 行高 26px / 点阵字体。</p>
+
+<div class="hero bad">
+  <div class="lbl">改前：gap 8px（皮肤值）· 无标点，空格断句 <span class="pill">贴脸 + 机器断句</span></div>
+  <div class="headline"><span class="fish">🐳</span><span class="mono">中午了 主人你吃了吗</span></div>
+</div>
+
+<div class="hero good">
+  <div class="lbl">改后：gap 13px · 一个逗号 <span class="pill">呼吸够了 + 像人话</span></div>
+  <div class="headline wide"><span class="fish">🐳</span><span class="mono">中午了，主人你吃了吗</span></div>
+</div>
+
+<div class="hero good">
+  <div class="lbl">其它几条（都带一个逗号、≤14 字）</div>
+  <div class="headline wide"><span class="fish">🐳</span><span class="mono">早啊主人，本鲸等你半天了</span></div>
+  <div class="headline wide" style="margin-top:10px"><span class="fish">🐳</span><span class="mono">周三好呀，谁也别想偷懒</span></div>
+  <div class="headline wide" style="margin-top:10px"><span class="fish">🐳</span><span class="mono">又熬夜，你上次也这么说</span></div>
+</div>
+
+<div class="hero">
+  <div class="lbl">仍然不需要标点的两条（短到自成一句）</div>
+  <div class="headline wide"><span class="fish">🐳</span><span class="mono">月亮不睡我不睡</span></div>
+  <div class="headline wide" style="margin-top:10px"><span class="fish">🐳</span><span class="mono">过一半了，别慌</span></div>
+</div>
+</body></html>

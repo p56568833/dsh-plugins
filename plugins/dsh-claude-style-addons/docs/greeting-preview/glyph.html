@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body><div id=o></div>
+<script>
+const c=document.createElement('canvas').getContext('2d');
+c.font='400 20px "GB18030 Bitmap"';
+const cands=[
+ ['全角逗号 U+FF0C','，'],['半角逗号 U+002C',','],['全角句号 U+3002','。'],
+ ['全角句点 U+FF0E','．'],['小逗号 U+FE50','﹑'],['小句点 U+FE52','﹒'],
+ ['中文顿号 U+3001','、'],['间隔号 U+00B7','·'],['全角实心句点 U+FF61','｡'],
+ ['冒号 U+FF1A','：'],['竖线 U+FF5C','｜'],['中点 U+30FB','・'],
+ ['全角空格 U+3000','\u3000'],['窄空格 U+2009','\u2009'],['半角空格 U+2002','\u2002'],
+];
+const rows=cands.map(([n,ch])=>{
+  const w=c.measureText(ch).width;
+  return {n, cp:'U+'+ch.codePointAt(0).toString(16).toUpperCase().padStart(4,'0'), w:Math.round(w*100)/100};
+});
+document.getElementById('o').textContent=JSON.stringify(rows);
+</script></body></html>

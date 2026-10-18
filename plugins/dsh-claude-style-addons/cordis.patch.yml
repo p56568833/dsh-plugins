@@ -1,0 +1,9 @@
+# dsh-claude-style-addons bundle patch: inserts the plugin row into the profile roster.
+#
+# 这一行的 id 同时是本插件的设置命名空间：Claude Style 设置页上那几个开关写进
+# ~/.dsh/profiles/<profile>/cordis.patch.yml 时，就是 `- id: claude-style-addons` 下面的 config。
+# host 半边（exports "."）导出 Config 声明这几个字段；package.json 的 `dsh.client` 声明负责把
+# 浏览器半边（exports "./client"）载入 web GUI。
+- insert:
+    - id: claude-style-addons
+      name: 'dsh-claude-style-addons'

@@ -1,0 +1,4 @@
+# dsh bundle patch：把这一行插进 profile 的插件树（客户端插件靠 Loader 里这一行激活）。
+- insert:
+    - id: todo-bar
+      name: dsh-todo-bar

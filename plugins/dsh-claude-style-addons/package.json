@@ -1,0 +1,47 @@
+{
+  "name": "dsh-claude-style-addons",
+  "icon": "./icon.svg",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "description": "Claude Style 补丁：首页中文问候语及字体、原版 Deepy / 像素鲸鱼娘切换、侧栏余额卡片和行内代码配色。选项集中在「设置 → Claude Style」，独立于皮肤包。",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "icon.svg",
+    "locale",
+    "assets/whale-maid",
+    "mascot",
+    "tools/build-maid.mjs",
+    "README.md",
+    "verify.mjs",
+    "verify",
+    "docs"
+  ],
+  "scripts": {
+    "verify": "node verify.mjs",
+    "build:maid": "node tools/build-maid.mjs",
+    "build:maid:assets": "node tools/build-maid.mjs --assets",
+    "build:maid:drawn": "node tools/build-maid.mjs --drawn-assets",
+    "build:maid:derive": "node tools/build-maid.mjs --derive"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [],
+      "immediately": true
+    }
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,46 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>
+body{margin:0;padding:28px 32px;background:#faf9f5;color:#141413;font-family:-apple-system,sans-serif}
+h1{font-size:13.5px;margin:0 0 4px}.s{font-size:11.5px;color:#8b877e;margin:0 0 22px;line-height:1.7}
+.row{margin:0 0 22px}
+.lbl{font-size:11px;color:#8b877e;margin-bottom:7px}
+.headline{display:flex;align-items:center;gap:13px;font-size:20px;line-height:26px;font-weight:500}
+.fish{flex:none;width:21px;height:21px;display:inline-flex;align-items:center;justify-content:center}
+.mono{font-family:"GB18030 Bitmap";font-weight:400}
+.pill{display:inline-block;font-size:10px;padding:1px 6px;border-radius:99px;background:#eee9e0;color:#6b6a66;margin-left:8px}
+.pill.bad{background:#f6dcd7;color:#8c3a28}.pill.ok{background:#dcecdc;color:#2e6b45}
+/* 方案 B：用 CSS 把空格压窄（对应 letter-spacing:-2px） */
+.tight{letter-spacing:-2px}
+/* 方案 C：CSS 造一个宽一点的间隙（对应 letter-spacing:3px 于分隔处，这里用 word-spacing 模拟） */
+.wide{word-spacing:6px}
+</style></head><body>
+<h1>标点三条路 · 点阵字体下的真实观感</h1>
+<p class="s">字号 20px / 行高 26px / 点阵 GB18030 Bitmap / 鱼标间距 13px。请挑一条。</p>
+
+<div class="row">
+  <div class="lbl">Ａ 现在的样子：全角逗号 <span class="pill bad">你说的：和像素不搭</span></div>
+  <div class="headline"><span class="fish">🐳</span><span class="mono">过一半了，别慌</span></div>
+</div>
+
+<div class="row">
+  <div class="lbl">Ｂ 半角逗号（英文标点，形状小、更方） <span class="pill">比全角锐利，但在中文里不合规范</span></div>
+  <div class="headline"><span class="fish">🐳</span><span class="mono">过一半了, 别慌</span></div>
+</div>
+
+<div class="row">
+  <div class="lbl">Ｃ 不要标点，但把空格压窄（CSS 调间距） <span class="pill ok">全字都是格子，最统一</span></div>
+  <div class="headline"><span class="fish">🐳</span><span class="mono tight">过一半了 别慌</span></div>
+</div>
+
+<div class="row">
+  <div class="lbl">Ｄ 不要标点，用字体自带的整宽空格（＝我第一版，你否掉过） <span class="pill bad">缝隙过大</span></div>
+  <div class="headline"><span class="fish">🐳</span><span class="mono">过一半了 别慌</span></div>
+</div>
+
+<div class="row" style="border-top:1px solid #e7e4dc;padding-top:18px">
+  <div class="lbl">Ｃ 方案在几条长句上的样子（这是它最需要验证的地方）</div>
+  <div class="headline"><span class="fish">🐳</span><span class="mono tight">早啊主人 本鲸等你半天了</span></div>
+  <div class="headline" style="margin-top:10px"><span class="fish">🐳</span><span class="mono tight">这么晚还醒着 咱俩都不正常</span></div>
+  <div class="headline" style="margin-top:10px"><span class="fish">🐳</span><span class="mono tight">夜里好 烁丞 我陪你游</span></div>
+  <div class="headline" style="margin-top:10px"><span class="fish">🐳</span><span class="mono tight">月亮不睡我不睡</span></div>
+</div>
+</body></html>

@@ -1,0 +1,8 @@
+# dsh-approval-clear bundle patch：把这一行插进 profile 的插件树。
+#
+# DSH 的客户端插件必须由 Loader 里的一行「激活」：客户端模块系统扫描 Loader 各行，
+# 把声明了 dsh.client 的包的浏览器半边（exports "./client"）编进 boot graph 送到页面。
+# 本插件只改渲染，没有设置项，所以这一行不带 config。
+- insert:
+    - id: approval-clear
+      name: dsh-approval-clear

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Cost & Balance",
+    "description": "Live spend and API balance for the current conversation; hover for the model, peak/off-peak tariff and the billing breakdown."
+  }
+}

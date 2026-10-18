@@ -1,0 +1,21 @@
+{
+  "frames": 2,
+  "props": {
+    "nightcap": {
+      "sheet": "props",
+      "frame": 0,
+      "anchor": [
+        56,
+        79
+      ]
+    },
+    "laptop-closed": {
+      "sheet": "props",
+      "frame": 1,
+      "anchor": [
+        64,
+        68
+      ]
+    }
+  }
+}

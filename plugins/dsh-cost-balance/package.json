@@ -1,0 +1,32 @@
+{
+  "name": "dsh-cost-balance",
+  "icon": "./icon.png",
+  "version": "0.1.0",
+  "private": true,
+  "description": "实时显示本次对话消费与 API 账户余额（live cost & balance readout）",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "locale/*.json"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [],
+      "immediately": true
+    }
+  }
+}

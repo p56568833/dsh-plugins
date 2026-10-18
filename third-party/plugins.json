@@ -1,0 +1,76 @@
+{
+  "targetDshVersion": "0.2.1-rc.2",
+  "note": "Third-party plugins are NOT vendored in this repository. Install them from npm by exact name and version. Order matters only for the two that depend on dsh-claude-style.",
+  "installOrder": [
+    "dsh-claude-style",
+    "dsh-claude-style-addons (local, this repo)",
+    "dsh-whale-splash (local, this repo)",
+    "dsh-better-sidebar",
+    "dsh-image-gen",
+    "dsh-plugin-subscriptions",
+    "dsh-status-rotator",
+    "dsh-balance-widget",
+    "dshmarket",
+    "@modusensus/dsh-mneme"
+  ],
+  "plugins": [
+    {
+      "name": "dsh-claude-style",
+      "version": "0.16.2",
+      "title": "Claude Style 皮肤",
+      "note": "Dependency of dsh-claude-style-addons and dsh-whale-splash. Install first."
+    },
+    {
+      "name": "dsh-better-sidebar",
+      "version": "0.26.1",
+      "title": "侧栏增强",
+      "note": "File tree / git / search in the right sidebar."
+    },
+    {
+      "name": "dsh-image-gen",
+      "version": "0.9.1",
+      "title": "生图工作台",
+      "note": "chatgpt-sub provider needs a fresh OAuth login on the new machine."
+    },
+    {
+      "name": "dsh-plugin-subscriptions",
+      "version": "0.9.9",
+      "title": "订阅账号中转",
+      "note": "Needs a version exemption on DSH 0.2.1-rc.2; see profile/compatibility.json.example."
+    },
+    {
+      "name": "dsh-status-rotator",
+      "version": "0.37.0",
+      "title": "状态轮播",
+      "note": "Its settings do not migrate; reconfigure on the new machine."
+    },
+    {
+      "name": "dsh-balance-widget",
+      "version": "0.6.3",
+      "title": "余额 / 花费卡片",
+      "note": "Patched locally; re-apply third-party/patches/dsh-balance-widget-0.6.3-subagent-cost.patch after install."
+    },
+    {
+      "name": "dshmarket",
+      "version": "1.66.35",
+      "title": "插件市场",
+      "note": "Can install the others by name; pin versions manually."
+    },
+    {
+      "name": "@modusensus/dsh-mneme",
+      "version": "0.9.0",
+      "title": "跨会话记忆库",
+      "note": "Optional local embedding runtime downloads models on first use. Memory data does not migrate."
+    }
+  ],
+  "patches": [
+    {
+      "package": "dsh-balance-widget",
+      "version": "0.6.3",
+      "file": "patches/dsh-balance-widget-0.6.3-subagent-cost.patch",
+      "summary": "Fix session anchoring on DSH 0.2.x; fold subagent/team-member cost into this-session and today totals.",
+      "applyWindows": "powershell -ExecutionPolicy Bypass -File .\\install\\apply-balance-patch.ps1",
+      "applyMacos": "./install/apply-balance-patch.sh"
+    }
+  ]
+}

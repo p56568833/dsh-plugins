@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>字体候选对照</title>
+<style>
+  :root { --ink: #141413; --dim: #6b6a66; }
+  body {
+    margin: 0; padding: 34px 38px 30px;
+    background: #faf9f5; color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  h1 { font-size: 15px; font-weight: 600; letter-spacing: .02em; margin: 0 0 4px; }
+  .sub { font-size: 12px; color: var(--dim); margin-bottom: 26px; line-height: 1.6; }
+  .row { display: flex; align-items: baseline; gap: 22px; padding: 15px 0; border-top: 1px solid #e7e4dc; }
+  .tag { flex: 0 0 172px; }
+  .tag b { display: block; font-size: 13.5px; font-weight: 600; }
+  .tag span { font-size: 11.5px; color: var(--dim); }
+  .line { font-size: 20px; font-weight: 500; line-height: 26px; color: var(--ink); }
+  .note { font-size: 11.5px; color: var(--dim); margin-top: 2px; }
+  /* 四个候选：都用系统真装的族名，附西文衬线兜底 */
+  .f0 { font-family: "GB18030 Bitmap"; font-weight: 400; }
+  .f1 { font-family: "Songti SC", "STSong", Georgia, serif; }
+  .f2 { font-family: "Kaiti SC", "STKaiti", Georgia, serif; }
+  .f3 { font-family: "PingFang SC", -apple-system, sans-serif; }
+  .f4 { font-family: "Lantinghei SC", "Heiti SC", sans-serif; }
+  .f5 { font-family: "Yuanti SC", "Hiragino Maru Gothic ProN", sans-serif; }
+  /* 长度对照用同一字体，只比长度 */
+  .len { font-family: "Songti SC", Georgia, serif; }
+  .len.old { color: #a8a49c; }
+</style>
+</head>
+<body>
+  <h1>中文问候语 · 字体候选（都是 20px / 500 字重 / 26px 行高 —— 与皮肤现有设定一致）</h1>
+  <div class="sub">
+    下面每一行的字号、字重、行高完全相同，只有字体族不同。<br>
+    <b>当前生效的是 ⓪ 点阵</b>（GB18030 Bitmap，系统自带、覆盖 GB18030 全集）。想换就改 client.js 里的 GREETING_FONT。
+  </div>
+
+  <div class="row">
+    <div class="tag"><b>⓪ 点阵</b><span>GB18030 Bitmap（当前）</span></div>
+    <div>
+      <div class="line f0">早啊主人 本鲸等你半天了</div>
+      <div class="note">和像素鲸鱼标同一套视觉语言。只有一种字重，看起来略实；看久了可能腻。</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="tag"><b>① 宋体</b><span>Songti SC</span></div>
+    <div>
+      <div class="line f1">早啊主人 本鲸等你半天了</div>
+      <div class="note">有笔锋、有书卷气。和左侧西文衬线（Anthropic Serif）气质一致，最耐看。</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="tag"><b>② 楷体</b><span>Kaiti SC</span></div>
+    <div>
+      <div class="line f2">早啊主人 本鲸等你半天了</div>
+      <div class="note">手写温度，像有人留了张字条。缺点是笔画细，20px 下略轻。</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="tag"><b>③ 苹方</b><span>PingFang SC（皮肤原本的兜底）</span></div>
+    <div>
+      <div class="line f3">早啊主人 本鲸等你半天了</div>
+      <div class="note">中性、干净、和 UI 一致，但也因此最"平庸"。</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="tag"><b>④ 兰亭黑</b><span>Lantinghei SC</span></div>
+    <div>
+      <div class="line f4">早啊主人 本鲸等你半天了</div>
+      <div class="note">设计感黑体，笔画收尾带一点方切。比苹方有性格，不失可读性。</div>
+    </div>
+  </div>
+
+  <div class="row" style="border-bottom: 1px solid #e7e4dc;">
+    <div class="tag"><b>⑤ 圆体</b><span>Yuanti SC</span></div>
+    <div>
+      <div class="line f5">早啊主人 本鲸等你半天了</div>
+      <div class="note">圆润软萌，和"鲸鱼娘"气质最搭。风险是容易显得幼稚。</div>
+    </div>
+  </div>
+</body>
+</html>

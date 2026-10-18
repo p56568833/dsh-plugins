@@ -1,0 +1,45 @@
+{
+  "name": "dsh-approval-clear",
+  "version": "0.2.0",
+  "private": true,
+  "description": "简洁审批卡片：操作说明、查看详情、拒绝或允许一次。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "src",
+    "tools",
+    "test",
+    "verify.mjs",
+    "preview",
+    "docs",
+    "README.md",
+    "locale"
+  ],
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "preview": "node tools/make-preview.mjs",
+    "test": "node --test test/*.test.mjs",
+    "verify": "node verify.mjs",
+    "preview:dark": "node tools/make-preview.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [],
+      "immediately": true
+    }
+  },
+  "license": "MIT"
+}

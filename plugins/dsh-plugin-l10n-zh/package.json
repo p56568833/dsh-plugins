@@ -1,0 +1,42 @@
+{
+  "name": "dsh-plugin-l10n-zh",
+  "icon": "./icon.png",
+  "version": "0.1.0",
+  "private": true,
+  "description": "安装或更新任何 DSH 插件后，自动把它在插件页显示的标题与描述汉化成简体中文。",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./localize": {
+      "default": "./lib/localize.mjs"
+    },
+    "./translator": {
+      "default": "./lib/deepseek-translator.mjs"
+    },
+    "./cli": {
+      "default": "./lib/cli.mjs"
+    },
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "verify.mjs",
+    "README.md"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "/Applications/DeepSeek\\ Harness.app/Contents/Resources/runtime/primary-runtime/dependencies/node/bin/node --test 'test/*.test.mjs'",
+    "scan": "/Applications/DeepSeek\\ Harness.app/Contents/Resources/runtime/primary-runtime/dependencies/node/bin/node lib/cli.mjs scan",
+    "apply": "/Applications/DeepSeek\\ Harness.app/Contents/Resources/runtime/primary-runtime/dependencies/node/bin/node lib/cli.mjs apply"
+  }
+}
