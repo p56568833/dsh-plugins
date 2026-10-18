@@ -1,0 +1,34 @@
+{
+  "name": "dsh-balance-widget-patch",
+  "icon": "./icon.svg",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "余额卡片补丁：给 dsh-balance-widget 加一个「余额 ⇄ OpenCode Go 额度」模式切换（弹层顶部的切换按钮，卡片跟着变），并在插件被重装/更新后自动把补丁写回去。",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "icon.svg",
+    "locale",
+    "payload",
+    "patches",
+    "targets.json",
+    "tools",
+    "README.md"
+  ],
+  "scripts": {
+    "verify": "node tools/verify.mjs",
+    "build:patch": "node tools/build-patch.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}

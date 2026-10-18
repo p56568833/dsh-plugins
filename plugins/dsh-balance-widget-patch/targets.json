@@ -1,0 +1,24 @@
+{
+  "package": "dsh-balance-widget",
+  "version": "0.6.3",
+  "source": "npm dsh-balance-widget@0.6.3",
+  "note": "pristine = SHA256 of the file exactly as published on npm 0.6.3. previous = SHA256 of an older revision of OUR OWN patch (so an upgraded payload can replace it). payload/lib holds the patched file we ship. The self-heal writes the payload back only while the installed file matches pristine or a previous payload; anything else (a real upstream release) is left untouched.",
+  "files": {
+    "lib/index.js": {
+      "pristine": "52f560a634da06e50eb8413149e1a9735a61191d17511bb8ae83d151e0f42a90",
+      "previous": [
+        "171387fa13ef3c5f10101fc5de0c512f337b39a119534581751c79153573433a"
+      ],
+      "payload": "6078473be488f09cf5541158dd86f58deb16b2870cfbfc49aba407414e337608"
+    },
+    "lib/client.js": {
+      "pristine": "7beb1139e8d739090ec2edb121b1fe9bf8bc5c09fba8e3a6ca4305b0fa83b0ea",
+      "previous": [
+        "5e2807125b41f17ee492620af34a5de2479c01959be42954b67d651f93b064a3",
+        "9e30f73577808a26bcc64cf0b54e50e26a172c318b1d5db92157fdced6fa677b",
+        "e2bf3461f59fe0baf9f97136341503f1f4bf23308c3a4293f160dfcc0a16324a"
+      ],
+      "payload": "66e5cf1c06cddf2d13898ca4529dec16dbabea8e19bfeb62456c6433aade5d69"
+    }
+  }
+}

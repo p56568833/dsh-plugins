@@ -28,17 +28,21 @@ dshmarket@1.66.35
 ## 两个需要额外处理的
 
 1. **`dsh-plugin-subscriptions@0.9.9`** —— 在 DSH `0.2.1-rc.2` 上需要版本豁免，见 [`../profile/compatibility.json.example`](../profile/compatibility.json.example)。
-2. **`dsh-balance-widget@0.6.3`** —— 装完要打本机补丁：
+2. **`dsh-balance-widget@0.6.3`** —— 装完由本地插件 [`dsh-balance-widget-patch`](../plugins/dsh-balance-widget-patch) 负责打补丁（**不要再手工跑下面的旧脚本**）。补丁做四件事：Windows 上会话目录改用 `DSH_HOME` / `USERPROFILE`（原来只认 `HOME`，Windows 上会话永远查不到，面板会报 `会话: no session files found` 且今日花费恒为 ¥0）；适配 DSH 0.2.x 的当前会话读取；把子代理/团队成员花费并入「今日·本会话」；加一个「余额 ⇄ OpenCode Go 额度」模式切换。
 
    ```powershell
-   # Windows
-   powershell -ExecutionPolicy Bypass -File .\install\apply-balance-patch.ps1
+   # Windows：登记插件 + 落 junction（补丁由插件自己在启动时写回，无需手动打）
+   node plugins\dsh-balance-widget-patch\tools\profile.mjs add --profile desktop
+   dsh plugin --profile desktop install
    ```
 
    ```bash
    # macOS
-   ./install/apply-balance-patch.sh
+   node plugins/dsh-balance-widget-patch/tools/profile.mjs add --profile desktop
+   dsh plugin --profile desktop install
    ```
+
+   补丁成品在 `plugins/dsh-balance-widget-patch/payload/`，人可读 diff 在 `plugins/dsh-balance-widget-patch/patches/`；自检 `node plugins/dsh-balance-widget-patch/tools/verify.mjs --pristine <官方 0.6.3 解包目录>`。下面的旧脚本与旧补丁保留为历史记录，**对已经打上新补丁的安装会直接报错退出**（`git apply` 失败），不会破坏任何东西。
 
 ## 关于版本
 

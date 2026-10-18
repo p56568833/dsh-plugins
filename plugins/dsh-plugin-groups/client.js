@@ -151,11 +151,14 @@ window.__ModuleLoader__.load({
      *                         （2026-10-04 由 dsh-cn-greeting、dsh-skin-fixes 合并），选项画在皮肤自己的设置页里
      *   · dsh-story-progress 「商业故事写作模式：文笔迭代时显示实时进度」—— 显示的是 dsh-story-turing 的 story_loop
      *   · dsh-market-sidebar 「侧边栏加插件市场入口」—— 面板本体是 dshmarket 的 market.render()
+     *   · dsh-balance-widget-patch 「余额卡片补丁」—— 给 dsh-balance-widget 加 Go 额度模式，
+     *                         并把补丁写回被更新/重装的 dsh-balance-widget
      */
     const PARENTS = {
       'dsh-claude-style-addons': 'dsh-claude-style',
       'dsh-story-progress': 'dsh-story-turing',
       'dsh-market-sidebar': 'dshmarket',
+      'dsh-balance-widget-patch': 'dsh-balance-widget',
     }
 
     /** 我们给卡片打的标记：补丁卡片（值是它在父插件下的序号，从 1 起）/ 有补丁的父插件卡片（值是补丁数）。 */

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Balance card patch",
+    "description": "Adds a \"balance ⇄ OpenCode Go quota\" mode switch to the balance & cost card: one click in the popover header flips the card from the ¥ wallet to the Go quota as used percentages plus a green progress bar (5-hour / weekly / billing-period rows, with a \"used today\" total beneath them). The patch ships with this plugin and is re-applied automatically after a reinstall or update."
+  }
+}

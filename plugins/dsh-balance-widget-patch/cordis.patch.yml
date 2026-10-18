@@ -1,0 +1,14 @@
+# dsh-balance-widget-patch bundle patch: inserts the plugin row into the profile roster.
+#
+# 这一行的 id 同时是本插件的设置命名空间：写进 ~/.dsh/profiles/<profile>/cordis.patch.yml 的
+# config 就挂在 `- id: balance-widget-patch` 下面，可改的字段见 index.js 的 CONFIG_DEFAULTS
+# （goMode / goBaseURL / goApiKeyEnv / goPeriodStart / goFiveHourLimitUsd / goWeekLimitUsd /
+#  goMonthLimitUsd / requestTimeoutMs / autoHeal）。
+#
+# 本插件只有 host 半边（exports "."）：
+#   · 定时把 payload/lib 写回被更新的 dsh-balance-widget（自愈）
+#   · 提供 /api/dsh-quota/go 给卡片上的「额度」模式
+# 卡片的界面改动在 payload/lib/client.js 里（浏览器半边，改完约 0.5s 热重载）。
+- insert:
+    - id: balance-widget-patch
+      name: 'dsh-balance-widget-patch'

@@ -4,9 +4,12 @@
     Re-apply the local patch to dsh-balance-widget 0.6.3.
 
 .DESCRIPTION
-    The patch fixes session anchoring on DSH 0.2.x and folds subagent / team-member
-    cost into the current-session and today totals. It only applies to version 0.6.3
-    and is lost whenever the plugin is reinstalled or upgraded.
+    The patch fixes the Windows sessions root (HOME is unset there, so every
+    session lookup used to find no files: the panel showed
+    "session: no session files found" and today's costs stayed at zero), fixes
+    session anchoring on DSH 0.2.x, and folds subagent / team-member cost into
+    the current-session and today totals. It only applies to version 0.6.3 and
+    is lost whenever the plugin is reinstalled or upgraded.
 
     Requires Git for Windows ("git" on PATH).
 

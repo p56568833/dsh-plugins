@@ -1,12 +1,19 @@
-# dsh-balance-widget 0.6.3 — 会话锚定修复 + 子代理成本并入「今日·本会话」
+# dsh-balance-widget 0.6.3 — Windows 会话目录修复 + 会话锚定修复 + 子代理成本并入「今日·本会话」
 # 适用：DSH 0.2.x（桌面版 0.2.1-rc.2 实测）
 # 应用：patch -p1 -d ~/.dsh/profiles/desktop/node_modules/dsh-balance-widget < 本文件
 # 说明：升级/重装插件后需要重新应用；补丁只改 lib/index.js 与 lib/client.js
-
-diff -ruN a/lib/client.js b/lib/client.js
---- a/lib/client.js	2026-10-18 01:53:50
-+++ b/lib/client.js	2026-10-18 01:53:50
-@@ -230,8 +230,13 @@
+#
+# 2026-10-18 追加：host 端 sessionsRoot() 原来只用 process.env.HOME 拼路径。Windows 上
+# HOME 未设置（Node 把主目录放在 USERPROFILE），路径于是退化成 "/.dsh/sessions"
+# ——当前盘根目录，永远不存在。结果是每个会话都查不到：面板红字
+# "会话: no session files found"，"最近一次提问 / 今日·本会话" 永远是 —，
+# "今日·本工作区 / 所有工作区" 永远是 ¥0。现在按 DSH_HOME → HOME → USERPROFILE
+# 依次取根目录（macOS/Linux 行为不变）。
+diff --git a/lib/client.js b/lib/client.js
+index cd3e38d..877edca 100644
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -230,8 +230,13 @@ window.__ModuleLoader__.load({
  			const [popPos, setPopPos] = (0, react.useState)(null);
  			// The currently selected session id (the session the user is viewing).
  			// This anchors "today · this workspace" to the actual current workspace.
@@ -21,7 +28,7 @@ diff -ruN a/lib/client.js b/lib/client.js
  				: void 0;
  			/** Fetch today's costs (workspace + all) from the dual-value route. */
  			const fetchTodayCosts = async () => {
-@@ -553,8 +558,8 @@
+@@ -553,8 +558,8 @@ window.__ModuleLoader__.load({
  			"todayAll": "今日·所有工作区",
  			"explain.aria": "解释",
  			"explain.balance": "DeepSeek 账户可用余额，实时查询官方接口。",
@@ -32,7 +39,7 @@ diff -ruN a/lib/client.js b/lib/client.js
  			"explain.todayWs": "当前工作区今天所有会话的费用合计估算。",
  			"explain.todayAll": "所有工作区今天所有会话的费用合计估算（含其他项目）。",
  			"warn.title.1": "余额不足 ¥5，建议及时充值",
-@@ -584,8 +589,8 @@
+@@ -584,8 +589,8 @@ window.__ModuleLoader__.load({
  			"todayAll": "Today · all workspaces",
  			"explain.aria": "Explain",
  			"explain.balance": "DeepSeek account balance, fetched live from the official API.",
@@ -43,10 +50,28 @@ diff -ruN a/lib/client.js b/lib/client.js
  			"explain.todayWs": "Estimated total cost of today's sessions in the current workspace.",
  			"explain.todayAll": "Estimated total cost of today's sessions across all workspaces.",
  			"warn.title.1": "Balance below ¥5, consider topping up",
-diff -ruN a/lib/index.js b/lib/index.js
---- a/lib/index.js	2026-10-18 01:53:50
-+++ b/lib/index.js	2026-10-18 01:53:50
-@@ -653,6 +653,148 @@
+diff --git a/lib/index.js b/lib/index.js
+index 34c150b..6ef64c9 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -584,7 +584,15 @@ function startPricingSync() {
+  * Avoids importing dsh-home-paths to keep zero external dependencies.
+  */
+ function sessionsRoot() {
+-	return `${process.env.HOME ?? ""}/.dsh/sessions`;
++	// DSH_HOME is the host's canonical data directory. `HOME` is normally unset
++	// on Windows (Node keeps the home in USERPROFILE), and building from an
++	// empty base yields `/.dsh/sessions` on the current drive — a path that
++	// exists nowhere, so every session lookup silently found no files.
++	const base = process.env.DSH_HOME
++		?? (process.env.HOME !== void 0 && process.env.HOME !== ""
++			? `${process.env.HOME}/.dsh`
++			: `${process.env.USERPROFILE ?? ""}/.dsh`);
++	return `${base}/sessions`;
+ }
+ 
+ /** Strip a leading "session-" prefix if present (callers may pass either form). */
+@@ -653,6 +661,148 @@ async function resolveSessionFile(sessionId) {
  	return void 0;
  }
  
@@ -195,7 +220,7 @@ diff -ruN a/lib/index.js b/lib/index.js
  let _fs;
  function awaitImportFs() {
  	if (_fs === void 0) _fs = import("node:fs");
-@@ -723,6 +865,10 @@
+@@ -723,6 +873,10 @@ function parseSessionUsages(text) {
  	let currentTurn = 0;
  	let cwd = void 0;
  	let title = void 0;
@@ -206,7 +231,7 @@ diff -ruN a/lib/index.js b/lib/index.js
  	for (const line of text.split("\n")) {
  		if (line === "") continue;
  		let event;
-@@ -734,10 +880,13 @@
+@@ -734,10 +888,13 @@ function parseSessionUsages(text) {
  		const type = event.type;
  		if (type === "session") {
  			cwd = event.cwd;
@@ -220,7 +245,7 @@ diff -ruN a/lib/index.js b/lib/index.js
  		} else if (type === "request/header") {
  			currentModel = event.data?.header?.config?.model ?? currentModel;
  		} else if (type === "assistant/message") {
-@@ -761,7 +910,7 @@
+@@ -761,7 +918,7 @@ function parseSessionUsages(text) {
  			});
  		}
  	}
@@ -229,7 +254,7 @@ diff -ruN a/lib/index.js b/lib/index.js
  }
  
  /** Cost of the last turn (the most recent user prompt) in one session file. */
-@@ -1051,8 +1200,47 @@
+@@ -1051,8 +1208,47 @@ function makeRoutes(ctx, config) {
  					return;
  				}
  				const parsed = parseSessionUsages(result.text);
@@ -279,7 +304,7 @@ diff -ruN a/lib/index.js b/lib/index.js
  				// Current peak/off-peak state + price tier for the configured model.
  				const now = new Date();
  				const peakActive = isPeak(now);
-@@ -1065,10 +1253,6 @@
+@@ -1065,10 +1261,6 @@ function makeRoutes(ctx, config) {
  					const segments = parsed.cwd.split("/").filter((s) => s !== "");
  					workspaceName = segments.length > 0 ? segments[segments.length - 1] : parsed.cwd;
  				}
@@ -290,7 +315,7 @@ diff -ruN a/lib/index.js b/lib/index.js
  				writeJson(res, 200, {
  					lastPrompt: last,
  					todaySession,
-@@ -1076,6 +1260,11 @@
+@@ -1076,6 +1268,11 @@ function makeRoutes(ctx, config) {
  					title: parsed.title,
  					workspaceName,
  					sessionId: fileSessionId,

@@ -7,3 +7,9 @@
 *.ico binary
 *.ps1 text eol=crlf
 *.command text eol=lf
+
+# dsh-balance-widget-patch 的补丁成品与补丁文件必须**按字节原样**存取：
+# payload/lib/*.js 的 SHA256 就是自愈的判据，任何行尾转换都会让记录漂移
+# （Windows 上 core.autocrlf=true 时 `git apply` 会把 LF 补丁写成 CRLF）。
+plugins/dsh-balance-widget-patch/payload/** -text
+plugins/dsh-balance-widget-patch/patches/*.patch -text

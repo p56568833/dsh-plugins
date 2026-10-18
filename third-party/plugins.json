@@ -48,7 +48,7 @@
       "name": "dsh-balance-widget",
       "version": "0.6.3",
       "title": "余额 / 花费卡片",
-      "note": "Patched locally; re-apply third-party/patches/dsh-balance-widget-0.6.3-subagent-cost.patch after install."
+      "note": "Patched by the local plugin dsh-balance-widget-patch (self-healing, no manual step). The patch fixes the Windows sessions root, fixes session anchoring on DSH 0.2.x, folds subagent cost into this-session totals, and adds a balance <-> OpenCode Go quota mode switch."
     },
     {
       "name": "dshmarket",
@@ -67,10 +67,17 @@
     {
       "package": "dsh-balance-widget",
       "version": "0.6.3",
-      "file": "patches/dsh-balance-widget-0.6.3-subagent-cost.patch",
-      "summary": "Fix session anchoring on DSH 0.2.x; fold subagent/team-member cost into this-session and today totals.",
-      "applyWindows": "powershell -ExecutionPolicy Bypass -File .\\install\\apply-balance-patch.ps1",
-      "applyMacos": "./install/apply-balance-patch.sh"
+      "owner": "plugins/dsh-balance-widget-patch",
+      "file": "plugins/dsh-balance-widget-patch/patches/dsh-balance-widget-0.6.3.patch",
+      "summary": "Applied automatically by the dsh-balance-widget-patch plugin: resolve the sessions root on Windows (HOME is unset; DSH_HOME/USERPROFILE are used), fix session anchoring on DSH 0.2.x, fold subagent/team-member cost into this-session and today totals, and add the balance <-> OpenCode Go quota mode switch.",
+      "apply": "node plugins/dsh-balance-widget-patch/tools/profile.mjs add --profile desktop && dsh plugin --profile desktop install",
+      "verify": "node plugins/dsh-balance-widget-patch/tools/verify.mjs --pristine <unpacked dsh-balance-widget@0.6.3>",
+      "legacy": {
+        "file": "patches/dsh-balance-widget-0.6.3-subagent-cost.patch",
+        "applyWindows": "powershell -ExecutionPolicy Bypass -File .\\install\\apply-balance-patch.ps1",
+        "applyMacos": "./install/apply-balance-patch.sh",
+        "note": "Superseded by the plugin above; kept as history. Fails loudly if the newer payload is already applied."
+      }
     }
   ]
 }
