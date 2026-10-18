@@ -60,7 +60,12 @@ curl.exe -s http://127.0.0.1:63676/api/dsh-quota/go
     goMode: quota            # 卡片默认档：balance | quota（弹层切换会记住用户选择，盖过这里）
     goBaseURL: https://opencode.ai
     goApiKeyEnv: OPENCODE_GO_API_KEY
-    goPeriodStart: ""        # 留空 = 月窗口按 UTC 自然月；填账期起点（ISO）可精确对齐账期
+    goConsoleLive: true      # true = 账期实时读 Console 账单（下面两个 goPeriod* 只当兜底）
+    goPeriodStart: ""        # 兜底：账期起点（ISO）
+    goPeriodEnd: ""          # 兜底：真实续费日（ISO）。过了就按月往前滚，不用改配置
+    goFiveHourResetAt: ""    # 5 小时接力窗口的锚点：任意一次窗口终点（ISO）
+    goOAuthTokenFile: ""     # 空 = ~/.dsh/balance-widget-patch/oauth.json
+    goOAuthClientId: ""      # 令牌文件里没写 client_id 时用它 refresh
     goFiveHourLimitUsd: 16   # Flash：月 $80 的 20% / 50% / 100% = 16 / 40 / 80
     goWeekLimitUsd: 40       # 换成 V4 Pro（月 $15）时改成 3 / 7.5 / 15
     goMonthLimitUsd: 80
@@ -68,12 +73,46 @@ curl.exe -s http://127.0.0.1:63676/api/dsh-quota/go
     autoHeal: true           # false = 关掉自动写回，只保留额度接口
 ```
 
-额度口径（OpenCode Go 官方文档 + Console bundle 里的 `allowance` 实测）：
+额度口径：
 
-- **5 小时窗口**：Flash $16、Pro $3。DSH 没有 Console 会话，读不到官方窗口的真实起点，所以按**最近 5 小时滚动**统计 —— 只会偏保守（不会少报）。
-- **本周**：Flash $40、Pro $7.5，按 **UTC 日历周**（周一 00:00Z 起算）精确对齐。
-- **账期**：Flash $80、Pro $15。账期起点用推理密钥读不到，默认按 UTC 自然月；想在 Console 上看真实账期起点，用 `goPeriodStart` 填进去。
-- 数值来自 `https://opencode.ai/console/api/usage/models?since=<ISO>` 的 `totalCostMicroCents`（1 USD = 1e8），按 provider `opencode-go` 汇总；档位（Flash / Pro）由账期里花钱最多的模型决定。
+- **账期（月）**：Flash $80、Pro $15。**起点实时来自 Console 账单**（见下一节），续费自动跟随；读不到才退回 `goPeriodEnd` → `goPeriodStart + 30 天` → UTC 自然月。
+- **本周**：Flash $40、Pro $7.5，按 **UTC 日历周**（周一 00:00Z 起算）—— 与 Console 完全一致。
+- **5 小时窗口**：Flash $16、Pro $3。Go 的窗口是**接力式固定窗口**（终点落在 `锚点 + 5h×k`），不是任意「最近 5 小时」；给一次 `goFiveHourResetAt` 就能一直推下去。没给锚点才退回最近 5 小时（换窗后会明显高估）。
+- 已用金额来自 `https://opencode.ai/console/api/usage/models?since=<ISO>` 的 `totalCostMicroCents`（1 USD = 1e8），按 provider `opencode-go` 汇总；档位（Flash / Pro）由账期里花钱最多的模型决定。
+
+## 账期实时读取与令牌（2026-10-18 加）
+
+账期起点/终点直接读 Console 的账单记录：
+
+```
+GET /console/api/billing/payment-attempts        （Bearer <OAuth 令牌>）
+→ 最新一笔成功的 go_initial / go_renewal / go_upgrade 的
+  lifecycleAppliedAt（或 settledAt / paidAt）= 本账期起点，终点 = 下月同日
+```
+
+续费会产生新的 `go_renewal` 记录，所以**不需要人工维护**。`/api/dsh-quota/go` 的 `period.source`
+会写 `billing-period-live`（实时）或 `billing-period` / `utc-month`（兜底），`period.live` 写明实时那一路的结果
+（`console-billing` = 成功；`no-token` / `disabled` / `attempts-403` … = 失败原因）。
+
+**为什么不能直接读窗口数字**：Console 的 `billing/drawer/status` 与 `internal/orgs/<id>/go/status`
+只认浏览器会话 —— 推理密钥是 403，带 `billing:read usage:read` scope 的 OAuth 令牌同样 403（2026-10-18 实测）。
+所以上限用公开固定值，窗口边界按上面的锚点/自然周推算。
+
+### 令牌怎么来（device flow，一次性）
+
+1. 注册一个本地公共客户端（RFC 7591，无密钥、可随时撤销）：
+   `POST https://opencode.ai/console/auth/oauth/register`
+   → `client_id`
+2. 取设备码：`POST https://opencode.ai/console/auth/device/code`
+   `{client_id, scope, supports_org_scope}` → `user_code` + `verification_uri_complete`
+3. 浏览器打开链接批准（`user_code` 10 分钟内有效）。
+4. 换令牌：`POST https://opencode.ai/console/auth/device/token`
+   `{grant_type:"urn:ietf:params:oauth:grant-type:device_code", device_code, client_id}`
+5. 把响应连同 `client_id` 存成 `~/.dsh/balance-widget-patch/oauth.json`（0600）。
+
+令牌 30 天有效；过期时插件用 `refresh_token` 自动续（`POST /console/auth/oauth/token`，
+`refresh_token` 会轮换并原子写回同一个文件）。不想要了就吊销：把该 `client_id` 从 Console 撤掉，
+或把 `goConsoleLive` 设成 `false`（插件退回手工配置，不报错）。
 
 ## 自愈怎么判定
 

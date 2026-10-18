@@ -20,7 +20,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -67,6 +67,11 @@ const CONFIG_FIELDS = {
 	goBaseURL: "string",
 	goApiKeyEnv: "string",
 	goPeriodStart: "string",
+	goPeriodEnd: "string",
+	goFiveHourResetAt: "string",
+	goOAuthTokenFile: "string",
+	goOAuthClientId: "string",
+	goConsoleLive: "boolean",
 	goFiveHourLimitUsd: "number",
 	goWeekLimitUsd: "number",
 	goMonthLimitUsd: "number",
@@ -78,8 +83,19 @@ const CONFIG_DEFAULTS = {
 	goMode: "balance",
 	goBaseURL: "https://opencode.ai",
 	goApiKeyEnv: "OPENCODE_GO_API_KEY",
-	// 留空 = 月窗口按 UTC 自然月；填 Console 上的账期起点（ISO）则精确对齐账期。
+	// 账期：默认由 goConsoleLive 实时读 Console 账单（payment-attempts），续费自动跟随；
+	// 读不到才退回这两个手工值，都没有就按 UTC 自然月。goPeriodEnd 优先于 goPeriodStart。
 	goPeriodStart: "",
+	goPeriodEnd: "",
+	// 5 小时窗口：Console 上是「接力式固定窗口」，给一个见过的窗口终点就能一路推下去；
+	// 留空则退回「最近 5 小时」——换窗之后会明显高估。
+	goFiveHourResetAt: "",
+	// Console OAuth 令牌文件（device flow 的 access_token / refresh_token）；空 = 默认位置。
+	goOAuthTokenFile: "",
+	// 令牌文件里没写 client_id 时，用它来 refresh。
+	goOAuthClientId: "",
+	// 总开关：关掉就只用手工配置，完全不去读账单。
+	goConsoleLive: true,
 	// OpenCode Go 每模型上限：Flash 16 / 40 / 80（月 $80 的 20% / 50% / 100%）。
 	// 切到 V4 Pro（月 $15）时把三条改成 3 / 7.5 / 15。
 	goFiveHourLimitUsd: 16,
@@ -126,6 +142,11 @@ function resolveConfig(raw) {
 		goBaseURL: string("goBaseURL") === "" ? Config.defaults.goBaseURL : string("goBaseURL"),
 		goApiKeyEnv: string("goApiKeyEnv") === "" ? Config.defaults.goApiKeyEnv : string("goApiKeyEnv"),
 		goPeriodStart: string("goPeriodStart"),
+		goPeriodEnd: string("goPeriodEnd"),
+		goFiveHourResetAt: string("goFiveHourResetAt"),
+		goOAuthTokenFile: string("goOAuthTokenFile"),
+		goOAuthClientId: string("goOAuthClientId"),
+		goConsoleLive: typeof value.goConsoleLive === "boolean" ? value.goConsoleLive : Config.defaults.goConsoleLive,
 		goFiveHourLimitUsd: number("goFiveHourLimitUsd"),
 		goWeekLimitUsd: number("goWeekLimitUsd"),
 		goMonthLimitUsd: number("goMonthLimitUsd"),
@@ -473,6 +494,160 @@ const GO_TIER_LIMITS = {
 	pro: { fiveHour: 3, week: 7.5, month: 15 }
 };
 
+/** 5 小时窗口的长度。 */
+const FIVE_HOUR_MS = 5 * 3600000;
+
+//#region Console 账单（OAuth）
+
+/** 令牌文件默认位置：和日志同目录。 */
+function defaultTokenFile() {
+	return join(LOG_DIR, "oauth.json");
+}
+
+/** 一次带令牌的 Console 读取。 */
+async function consoleGet(config, token, path) {
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+	try {
+		const response = await fetch(`${config.goBaseURL.replace(/\/+$/, "")}${path}`, {
+			method: "GET",
+			headers: { accept: "application/json", authorization: `Bearer ${token}` },
+			signal: controller.signal
+		});
+		let body;
+		try {
+			body = await response.json();
+		} catch {
+			body = null;
+		}
+		return { status: response.status, body };
+	} catch (error) {
+		return { status: 0, body: null, error: error instanceof Error ? error.message : String(error) };
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+/** 原子写回令牌文件（0600）：先写临时文件再改名，别留半截。 */
+function writeTokenFile(file, tokens) {
+	const temp = `${file}.tmp`;
+	try {
+		writeFileSync(temp, JSON.stringify(tokens, null, "\t"));
+		chmodSync(temp, 0o600);
+		renameSync(temp, file);
+		return true;
+	} catch {
+		try {
+			rmSync(temp, { force: true });
+		} catch { /* 尽力而为 */ }
+		return false;
+	}
+}
+
+/** 用 refresh_token 换新令牌；成功就写回文件（refresh_token 会轮换）。 */
+async function refreshTokens(config, file, tokens) {
+	const clientId = typeof tokens.client_id === "string" && tokens.client_id !== "" ? tokens.client_id : config.goOAuthClientId;
+	if (clientId === "" || typeof tokens.refresh_token !== "string" || tokens.refresh_token === "") return null;
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+	try {
+		const response = await fetch(`${config.goBaseURL.replace(/\/+$/, "")}/console/auth/oauth/token`, {
+			method: "POST",
+			headers: { accept: "application/json", "content-type": "application/json" },
+			body: JSON.stringify({ grant_type: "refresh_token", refresh_token: tokens.refresh_token, client_id: clientId }),
+			signal: controller.signal
+		});
+		if (!response.ok) return null;
+		const next = await response.json();
+		if (typeof next?.access_token !== "string") return null;
+		// refresh 的响应不带 org_id，别把它弄丢。
+		const merged = { ...next, client_id: clientId, org_id: next.org_id ?? tokens.org_id, obtainedAt: new Date().toISOString() };
+		writeTokenFile(file, merged);
+		return merged;
+	} catch {
+		return null;
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+/** Go 订阅的付款记录类型；账期从最新一笔成功付款开始。 */
+const GO_ATTEMPT_TYPES = ["go_initial", "go_renewal", "go_upgrade"];
+
+/** 一条付款记录上的时间戳，取第一个能解析的。 */
+function attemptStampMs(attempt) {
+	for (const key of ["lifecycleAppliedAt", "settledAt", "paidAt", "createdAt"]) {
+		const value = Date.parse(String(attempt?.[key] ?? ""));
+		if (Number.isFinite(value)) return value;
+	}
+	return Number.NaN;
+}
+
+/**
+ * 账期起点/终点优先从 Console 的账单记录实时取：
+ *   GET /console/api/billing/payment-attempts → 最新一笔 go_* 成功付款的
+ *   lifecycleAppliedAt / settledAt 就是本账期起点，终点 = 下月同日。
+ * 续费会产生新的 go_renewal 记录，所以这个值不需要人工维护。
+ *
+ * 令牌过期时用 refresh_token 续一次并写回文件。任何一步失败都返回 { error }，
+ * 交给调用方退回配置值 —— 账单读不到绝不能让卡片空掉。
+ */
+async function fetchLivePeriod(config) {
+	if (!config.goConsoleLive) return { error: "disabled" };
+	const file = config.goOAuthTokenFile === "" ? defaultTokenFile() : config.goOAuthTokenFile;
+	let tokens = readJson(file);
+	if (tokens === void 0 || typeof tokens?.access_token !== "string" || tokens.access_token === "") return { error: "no-token" };
+	let read = await consoleGet(config, tokens.access_token, "/console/api/billing/payment-attempts");
+	if (read.status === 401) {
+		tokens = await refreshTokens(config, file, tokens);
+		if (tokens === null) return { error: "refresh-failed" };
+		read = await consoleGet(config, tokens.access_token, "/console/api/billing/payment-attempts");
+	}
+	if (read.status !== 200 || !Array.isArray(read.body)) return { error: `attempts-${read.status}` };
+	const paid = read.body.filter((attempt) => GO_ATTEMPT_TYPES.includes(String(attempt?.attemptType)) && (attempt?.status === "succeeded" || attempt?.status === "paid"));
+	let startMs = Number.NaN;
+	for (const attempt of paid) {
+		const stamp = attemptStampMs(attempt);
+		if (Number.isFinite(stamp) && (!Number.isFinite(startMs) || stamp > startMs)) startMs = stamp;
+	}
+	if (!Number.isFinite(startMs)) return { error: "no-attempt" };
+	const end = new Date(startMs);
+	end.setUTCMonth(end.getUTCMonth() + 1);
+	return { sinceMs: startMs, resetsAtMs: end.getTime(), source: "console-billing" };
+}
+
+/** 5 小时窗口：Console 上是接力式固定窗口，终点落在 anchor + 5h×k 上。 */
+function fixedFiveHourWindow(anchorMs, nowMs) {
+	const steps = Math.ceil((nowMs - anchorMs) / FIVE_HOUR_MS);
+	const resetsAtMs = anchorMs + steps * FIVE_HOUR_MS;
+	return { sinceMs: resetsAtMs - FIVE_HOUR_MS, resetsAtMs };
+}
+
+/** 账期窗口（毫秒）：实时账单 > goPeriodEnd > goPeriodStart+30 天 > UTC 自然月。 */
+function billingPeriodWindow(config, live, now) {
+	if (live?.source !== void 0) return { sinceMs: live.sinceMs, resetsAtMs: live.resetsAtMs, anchor: "billing-period-live" };
+	const periodEndMs = config.goPeriodEnd === "" ? Number.NaN : Date.parse(config.goPeriodEnd);
+	if (Number.isFinite(periodEndMs)) {
+		const explicitStart = config.goPeriodStart === "" ? Number.NaN : Date.parse(config.goPeriodStart);
+		let start = Number.isFinite(explicitStart) ? explicitStart : periodEndMs - 30 * 86400000;
+		let end = periodEndMs;
+		// 手工填的终点是一次性的：过了续费日就按月往前滚，配置不用改。
+		for (let i = 0; i < 240 && end <= now.getTime(); i += 1) {
+			const s = new Date(start);
+			const e = new Date(end);
+			s.setUTCMonth(s.getUTCMonth() + 1);
+			e.setUTCMonth(e.getUTCMonth() + 1);
+			start = s.getTime();
+			end = e.getTime();
+		}
+		return { sinceMs: start, resetsAtMs: end, anchor: "billing-period" };
+	}
+	const periodStartMs = config.goPeriodStart === "" ? Number.NaN : Date.parse(config.goPeriodStart);
+	if (Number.isFinite(periodStartMs)) return { sinceMs: periodStartMs, resetsAtMs: periodStartMs + 30 * 86400000, anchor: "billing-period" };
+	return { sinceMs: utcMonthStart(now), resetsAtMs: nextUtcMonthStart(now), anchor: "utc-month" };
+}
+//#endregion
+
 /** 一次用量调用：返回该区间里的 provider 行。 */
 async function fetchRows(ctx, config, sinceMs) {
 	const key = await resolveKey(ctx, config.goApiKeyEnv);
@@ -535,15 +710,20 @@ function limitOf(config, tier, definition) {
 /** 三条窗口的已用/上限，或第一个错误。 */
 async function fetchQuota(ctx, config) {
 	const now = new Date();
-	const periodStartMs = config.goPeriodStart === "" ? Number.NaN : Date.parse(config.goPeriodStart);
+	// 账期：先试实时账单，失败就退回配置/UTC 自然月（见 billingPeriodWindow）。
+	const live = await fetchLivePeriod(config);
+	const period = billingPeriodWindow(config, live, now);
+	const anchorMs = config.goFiveHourResetAt === "" ? Number.NaN : Date.parse(config.goFiveHourResetAt);
+	const fiveHour = Number.isFinite(anchorMs) ? fixedFiveHourWindow(anchorMs, now.getTime()) : null;
 	const definitions = [
 		{
 			id: "fiveHour",
 			limitField: "goFiveHourLimitUsd",
 			limitKey: "fiveHour",
-			sinceMs: now.getTime() - 5 * 3600000,
-			anchor: "rolling5h",
-			resetsAt: null
+			// 没给锚点就退回「最近 5 小时」：只会偏保守，但换窗之后会明显高估。
+			sinceMs: fiveHour !== null ? fiveHour.sinceMs : now.getTime() - FIVE_HOUR_MS,
+			anchor: fiveHour !== null ? "fixed-5h" : "rolling5h",
+			resetsAt: fiveHour !== null ? new Date(fiveHour.resetsAtMs).toISOString() : null
 		},
 		{
 			id: "week",
@@ -557,9 +737,9 @@ async function fetchQuota(ctx, config) {
 			id: "month",
 			limitField: "goMonthLimitUsd",
 			limitKey: "month",
-			sinceMs: Number.isFinite(periodStartMs) ? periodStartMs : utcMonthStart(now),
-			anchor: Number.isFinite(periodStartMs) ? "billing-period" : "utc-month",
-			resetsAt: new Date(Number.isFinite(periodStartMs) ? periodStartMs + 30 * 86400000 : nextUtcMonthStart(now)).toISOString()
+			sinceMs: period.sinceMs,
+			anchor: period.anchor,
+			resetsAt: new Date(period.resetsAtMs).toISOString()
 		}
 	];
 	// 账期窗口先读一次：花钱最多的模型决定档位，另外两条窗口按同一档位汇总。
@@ -588,6 +768,13 @@ async function fetchQuota(ctx, config) {
 		tier,
 		limits: GO_TIER_LIMITS[tier],
 		source: "console-api",
+		period: {
+			source: period.anchor,
+			start: new Date(period.sinceMs).toISOString(),
+			end: new Date(period.resetsAtMs).toISOString(),
+			// console-billing = 实时读到账单；其余值是失败原因（no-token / disabled / attempts-403 …）。
+			live: live?.source !== void 0 ? live.source : (live?.error ?? "unknown")
+		},
 		fetchedAt: new Date().toISOString()
 	};
 }
