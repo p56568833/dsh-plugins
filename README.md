@@ -10,7 +10,7 @@
 
 | 维度 | 结论 |
 | --- | --- |
-| 这 8 个插件能不能在 Windows 跑 | **能。** 全部是纯 JavaScript + Web 客户端 UI，没有 `.node` 原生模块，没有调用 macOS 命令（`osascript` / `sips` / `open` 等都没有）。宿主半边只用 `node:fs`、`node:path`、`fetch`，路径全部走 `path.join`。 |
+| 这 8 个插件能不能在 Windows 跑 | **能。** 全部是纯 JavaScript + Web 客户端 UI，没有 `.node` 原生模块，没有调用 macOS 命令（`osascript` / `sips` / `open` 等都没有）。宿主半边只用 Node 内置模块（`fs` / `path` / `os` / `fetch`），路径全部走 `path.join` / `homedir()`。 |
 | 安装方式要不要改 | **要。** 插件目录里的 `安装.command` 是 macOS 专用；Windows 用 DSH 插件页「添加插件 → 绝对本地路径」，或 `dsh plugin add`。仓库里给了 PowerShell 一键脚本。 |
 | 真正的适配风险在哪 | **不是 Windows，是 DSH 版本。** 这些插件都是在桌面版 `0.2.1-rc.2` 上做的，DSH 还在 rc 阶段，插件靠 `@deepseek-ai/dsh*` 的 peer 版本范围和内部 UI 结构工作。Windows 端如果装到别的版本（尤其升到 0.3），可能被插件管理器判为不兼容，或者界面补丁悄悄失效。 |
 | 第三方插件怎么办 | **不重打包。** 它们在 npm 上，按「名字@版本」装即可（macOS 与 Windows 同一份包，平台相关依赖由 pnpm 按平台取）。只有 `dsh-balance-widget` 在本机打过补丁，重装后要重打，补丁已放进仓库。 |
