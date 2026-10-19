@@ -11,7 +11,9 @@
  *      发了新版），只记状态并让面板显示出来。
  *
  *   2. **Go 额度**。注册 `/api/dsh-quota/go`，用本机凭据里的 OpenCode 推理密钥读
- *      Console 用量接口，算出 5 小时 / UTC 本周 / 账期三条窗口的已用与上限，
+ *      官方订阅状态 `/console/api/go/status`（`access.meters`）：三条窗口的
+ *      startsAt / resetsAt / limit / used 都由官方给，和网页同一口径。
+ *      读不到才退回旧的「用量接口 + 本地推算」（5 小时窗口只能按最近 5 小时粗算）。
  *      供卡片上的「额度」模式显示。
  *
  * 设计约束：绝不阻塞、绝不抛错；任何异常只写日志，不影响 DSH 主流程。
@@ -87,8 +89,9 @@ const CONFIG_DEFAULTS = {
 	// 读不到才退回这两个手工值，都没有就按 UTC 自然月。goPeriodEnd 优先于 goPeriodStart。
 	goPeriodStart: "",
 	goPeriodEnd: "",
-	// 5 小时窗口：Console 上是「接力式固定窗口」，给一个见过的窗口终点就能一路推下去；
-	// 留空则退回「最近 5 小时」——换窗之后会明显高估。
+	// 仅兜底：官方 /console/api/go/status 读不到时，5 小时窗口才用这个锚点推。
+	// （「接力式固定窗口」是早期从网页倒推出来的猜测；实际是「从第一次使用起算 5 小时」，
+	//   所以锚点会漂 —— 能读官方接口时这个值不参与计算。）
 	goFiveHourResetAt: "",
 	// Console OAuth 令牌文件（device flow 的 access_token / refresh_token）；空 = 默认位置。
 	goOAuthTokenFile: "",
@@ -96,8 +99,9 @@ const CONFIG_DEFAULTS = {
 	goOAuthClientId: "",
 	// 总开关：关掉就只用手工配置，完全不去读账单。
 	goConsoleLive: true,
-	// OpenCode Go 每模型上限：Flash 16 / 40 / 80（月 $80 的 20% / 50% / 100%）。
-	// 切到 V4 Pro（月 $15）时把三条改成 3 / 7.5 / 15。
+	// 仅兜底的每模型上限：/usage/models 累计的是价目表价，约为官方折后价的 4/3，
+	// 所以这里写 16 / 40 / 80 才能和官方百分比对齐（官方 go-v1 的 meters 是 $12 / $30 / $60，
+	// go-plus 是 $48 / $120 / $240 —— 能读 /console/api/go/status 时直接用官方值，不看这里）。
 	goFiveHourLimitUsd: 16,
 	goWeekLimitUsd: 40,
 	goMonthLimitUsd: 80,
@@ -675,6 +679,73 @@ async function fetchRows(ctx, config, sinceMs) {
 	}
 }
 
+/** 官方订阅状态：Console 网页上那张「Rolling / Weekly / Monthly」卡片的同一个接口。 */
+const GO_STATUS_PATH = "/console/api/go/status";
+
+/**
+ * 读官方 `/console/api/go/status`，返回 `access.meters` 里的三条窗口。
+ *
+ * 为什么以它为准：
+ *   · 5 小时窗口**从第一次使用起算**（Console 的字段名就是 fiveHoursFromFirstUse），
+ *     不是「锚点 + 5h × k」的固定接力链 —— 窗口终点只有官方知道，本地推不出来；
+ *   · 官方 used 是 Go 的折后价（micro-cents，1e8 = $1），和 /usage/models 按价目表
+ *     累计出来的数不是同一个口径，混用会让百分比对不上。
+ *
+ * 任何失败都只返回 { error }，交给调用方退回旧算法。
+ */
+async function fetchGoStatus(ctx, config) {
+	const key = await resolveKey(ctx, config.goApiKeyEnv);
+	if (key === void 0) return { error: `no API key for ${config.goApiKeyEnv}` };
+	const base = config.goBaseURL.replace(/\/+$/, "");
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+	try {
+		const response = await fetch(`${base}${GO_STATUS_PATH}`, {
+			method: "GET",
+			headers: { accept: "application/json", authorization: `Bearer ${key}` },
+			signal: controller.signal
+		});
+		if (!response.ok) return { error: `go-status responded ${response.status}` };
+		const payload = await response.json();
+		const windows = goStatusWindows(payload);
+		if (windows === null) return { error: "go-status has no access.meters" };
+		return { windows, product: typeof payload?.product === "string" && payload.product !== "" ? payload.product : null };
+	} catch (error) {
+		return { error: error instanceof Error ? error.message : String(error) };
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+/**
+ * `access.meters` → 卡片要的窗口数组。
+ * 缺任何一条都返回 null：宁可退回旧算法，也不拿半套数据冒充官方。
+ */
+export function goStatusWindows(payload) {
+	const meters = payload?.access?.meters;
+	if (meters === void 0 || meters === null) return null;
+	const windows = [];
+	for (const id of ["fiveHour", "week", "month"]) {
+		const meter = meters[id];
+		if (meter === void 0 || meter === null) return null;
+		const limitUsd = microcentsToUsd(meter.limitMicroCents);
+		if (!(limitUsd > 0)) return null;
+		const resetsAtMs = Date.parse(String(meter.resetsAt ?? ""));
+		const startsAtMs = Date.parse(String(meter.startsAt ?? ""));
+		windows.push({
+			id,
+			usedUsd: Math.round(microcentsToUsd(meter.usedMicroCents) * 1e6) / 1e6,
+			limitUsd,
+			requests: null,
+			models: [],
+			anchor: "official-go-status",
+			since: Number.isFinite(startsAtMs) ? new Date(startsAtMs).toISOString() : null,
+			resetsAt: Number.isFinite(resetsAtMs) ? new Date(resetsAtMs).toISOString() : null
+		});
+	}
+	return windows;
+}
+
 /** 账期里花钱最多的模型决定档位 —— Go 的额度是按模型给的。 */
 function tierOf(rows) {
 	if (rows.length === 0) return "flash";
@@ -710,6 +781,22 @@ function limitOf(config, tier, definition) {
 /** 三条窗口的已用/上限，或第一个错误。 */
 async function fetchQuota(ctx, config) {
 	const now = new Date();
+	// 官方订阅状态优先：和 Console 网页同一接口、同一口径（5 小时窗口的终点由官方定，
+	// 本地「锚点 + 5h × k」推不准）。读不到才退回下面的本地推算。
+	const official = await fetchGoStatus(ctx, config);
+	if (official.windows !== void 0) {
+		const limits = {};
+		for (const window of official.windows) limits[window.id] = window.limitUsd;
+		return {
+			ok: true,
+			windows: official.windows,
+			tier: official.product ?? "official",
+			limits: { fiveHour: limits.fiveHour, week: limits.week, month: limits.month },
+			source: "console-go-status",
+			product: official.product,
+			fetchedAt: new Date().toISOString()
+		};
+	}
 	// 账期：先试实时账单，失败就退回配置/UTC 自然月（见 billingPeriodWindow）。
 	const live = await fetchLivePeriod(config);
 	const period = billingPeriodWindow(config, live, now);
@@ -768,6 +855,8 @@ async function fetchQuota(ctx, config) {
 		tier,
 		limits: GO_TIER_LIMITS[tier],
 		source: "console-api",
+		// 为什么没走官方接口（no API key / 403 / 断网 …）—— 卡片不显示，诊断时看它。
+		officialError: official.error,
 		period: {
 			source: period.anchor,
 			start: new Date(period.sinceMs).toISOString(),

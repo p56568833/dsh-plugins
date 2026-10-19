@@ -1,7 +1,7 @@
 {
   "name": "dsh-balance-widget-patch",
   "icon": "./icon.svg",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "余额卡片补丁：给 dsh-balance-widget 加一个「余额 ⇄ OpenCode Go 额度」模式切换（弹层顶部的切换按钮，卡片跟着变），并在插件被重装/更新后自动把补丁写回去。",
@@ -23,6 +23,7 @@
   ],
   "scripts": {
     "verify": "node tools/verify.mjs",
+    "selftest:quota": "node tools/quota-selftest.mjs",
     "build:patch": "node tools/build-patch.mjs"
   },
   "dsh": {

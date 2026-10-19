@@ -4,7 +4,7 @@
 
 1. **「余额 ⇄ OpenCode Go 额度」模式切换** —— 侧栏底部那张卡片的弹层顶部多一个小切换按钮。切到「额度」后卡片不再显示 DeepSeek 的 ¥ 余额，也不再显示 Go 额度的美元数字，改为**已用百分比 + 绿色进度条**：弹层里三档（5 小时 / 本周 / 账期）各是「标签 … 16%」加一条绿色进度条（进度条右侧是小字的重置倒计时），底下再补一行「今日已用 ¥x.xx」（读今日所有工作区的费用合计）；侧栏那张卡片本身则在 5 小时额度上显示百分比 + 一条迷你进度条。
 2. **补丁自愈** —— 补丁以成品文件（`payload/`）随本包发布。`dsh-balance-widget` 被重装或更新后，`node_modules` 里的文件会被换回官方原版，本插件会在启动时 / 安装事件后 / 每 10 分钟巡检一次，把成品文件写回去。**上游发新版也不会被静默覆盖**：文件指纹既不是官方原版、也不是我们自己的成品时，插件一概不碰，只把状态记下来。
-3. **Go 额度接口** —— 注册 `GET /api/dsh-quota/go`（仅回环地址可访问），用本机凭据里的 `OPENCODE_GO_API_KEY` 读 OpenCode Console 用量接口，算出三条窗口的已用 / 上限。
+3. **Go 额度接口** —— 注册 `GET /api/dsh-quota/go`（仅回环地址可访问），用本机凭据里的 `OPENCODE_GO_API_KEY` 读官方订阅状态 `GET /console/api/go/status`（和 Console 网页同一接口、同一口径：三条窗口的起点 / 重置时刻 / 上限 / 已用都由官方给）；读不到才退回用量接口 + 本地推算。
 
 ---
 
@@ -18,6 +18,7 @@
 | `targets.json` | 官方原版（`pristine`）与旧成品（`previous`）的 SHA256；决定"什么情况下才允许写回" |
 | `index.js` | 自愈 + `/api/dsh-quota/go` + `/api/dsh-quota/status` + `/api/dsh-quota/probe` |
 | `tools/verify.mjs` | 自检：payload / targets.json / patch 不许漂移；补丁打到官方原版上必须逐字节还原 payload |
+| `tools/quota-selftest.mjs` | 自检：官方 `access.meters` 翻译成三条窗口（离线用例）；加 `--live` 再真打一次官方接口 |
 | `tools/build-patch.mjs` | 由官方原版 + payload 重新生成 `patches/*.patch` |
 | `tools/profile.mjs` | 把本插件登记进 / 移出 profile（改 `dependencies` 与 `dsh.profile.bundles`，改前备份） |
 
@@ -63,22 +64,30 @@ curl.exe -s http://127.0.0.1:63676/api/dsh-quota/go
     goConsoleLive: true      # true = 账期实时读 Console 账单（下面两个 goPeriod* 只当兜底）
     goPeriodStart: ""        # 兜底：账期起点（ISO）
     goPeriodEnd: ""          # 兜底：真实续费日（ISO）。过了就按月往前滚，不用改配置
-    goFiveHourResetAt: ""    # 5 小时接力窗口的锚点：任意一次窗口终点（ISO）
+    goFiveHourResetAt: ""    # 仅兜底：读不到官方接口时 5 小时窗口的锚点（会漂，别手填）
     goOAuthTokenFile: ""     # 空 = ~/.dsh/balance-widget-patch/oauth.json
     goOAuthClientId: ""      # 令牌文件里没写 client_id 时用它 refresh
-    goFiveHourLimitUsd: 16   # Flash：月 $80 的 20% / 50% / 100% = 16 / 40 / 80
-    goWeekLimitUsd: 40       # 换成 V4 Pro（月 $15）时改成 3 / 7.5 / 15
-    goMonthLimitUsd: 80
+    goFiveHourLimitUsd: 16   # 仅兜底：/usage/models 的价目表价 ≈ 官方折后价 × 4/3
+    goWeekLimitUsd: 40       #   官方 go-v1 meters 是 $12 / $30 / $60，go-plus 是 $48 / $120 / $240
+    goMonthLimitUsd: 80      #   能读 /console/api/go/status 时这三行不参与计算
     requestTimeoutMs: 8000
     autoHeal: true           # false = 关掉自动写回，只保留额度接口
 ```
 
-额度口径：
+额度口径（**以官方接口为准**，下面第 1 条是主路径，后三条只在读不到官方接口时兜底）：
 
-- **账期（月）**：Flash $80、Pro $15。**起点实时来自 Console 账单**（见下一节），续费自动跟随；读不到才退回 `goPeriodEnd` → `goPeriodStart + 30 天` → UTC 自然月。
-- **本周**：Flash $40、Pro $7.5，按 **UTC 日历周**（周一 00:00Z 起算）—— 与 Console 完全一致。
-- **5 小时窗口**：Flash $16、Pro $3。Go 的窗口是**接力式固定窗口**（终点落在 `锚点 + 5h×k`），不是任意「最近 5 小时」；给一次 `goFiveHourResetAt` 就能一直推下去。没给锚点才退回最近 5 小时（换窗后会明显高估）。
-- 已用金额来自 `https://opencode.ai/console/api/usage/models?since=<ISO>` 的 `totalCostMicroCents`（1 USD = 1e8），按 provider `opencode-go` 汇总；档位（Flash / Pro）由账期里花钱最多的模型决定。
+- **官方订阅状态**：`GET /console/api/go/status`（Bearer `OPENCODE_GO_API_KEY`，推理密钥就能读）返回
+  `access.meters.{fiveHour,week,month}`，每条带 `startsAt` / `resetsAt` / `limitMicroCents` / `usedMicroCents`。
+  `/api/dsh-quota/go` 的 `source` 会是 `console-go-status`，三条窗口的 `anchor` 是 `official-go-status`。
+  官方 `usedMicroCents` 是 Go 折后价（1 USD = 1e8 micro-cents），百分比 = 已用 / 上限，和网页上的「% used」同值。
+- **5 小时窗口**：官方口径是**从第一次使用起算 5 小时**（Console 字段名 `fiveHoursFromFirstUse`），
+  不是「锚点 + 5h×k」的固定接力链 —— 窗口终点只有官方知道，所以**不再自己推**。
+  早期版本按固定锚点推，会出现「网页还剩 33 分钟、卡片显示还剩 3 小时 20 分」这种错位（2026-10-19 修）。
+- **本周**：UTC 日历周（周一 00:00Z 起算），官方给的就是这个边界。
+- **账期（月）**：起点来自 Console 账单（见下一节），官方 `month` 只给 `resetsAt`，没有 `startsAt`。
+- **兜底路径**（`source: "console-api"`，响应里带 `officialError` 写明原因）：已用金额来自
+  `https://opencode.ai/console/api/usage/models?since=<ISO>` 的 `totalCostMicroCents` 汇总；上限用
+  `go*LimitUsd`，5 小时窗口用 `goFiveHourResetAt` 锚点推或退回「最近 5 小时」——这条路径会偏，只是别让卡片空掉。
 
 ## 账期实时读取与令牌（2026-10-18 加）
 
@@ -94,9 +103,10 @@ GET /console/api/billing/payment-attempts        （Bearer <OAuth 令牌>）
 会写 `billing-period-live`（实时）或 `billing-period` / `utc-month`（兜底），`period.live` 写明实时那一路的结果
 （`console-billing` = 成功；`no-token` / `disabled` / `attempts-403` … = 失败原因）。
 
-**为什么不能直接读窗口数字**：Console 的 `billing/drawer/status` 与 `internal/orgs/<id>/go/status`
-只认浏览器会话 —— 推理密钥是 403，带 `billing:read usage:read` scope 的 OAuth 令牌同样 403（2026-10-18 实测）。
-所以上限用公开固定值，窗口边界按上面的锚点/自然周推算。
+**窗口数字现在能直接读了**（2026-10-19 实测）：`GET /console/api/go/status` 用**推理密钥**
+（`oc_sk_…`）就能返回，不必是浏览器会话；`access.meters` 里三条窗口的起点 / 重置时刻 / 上限 / 已用全都有。
+（`internal/orgs/<id>/go/status` 与 `billing/drawer/*` 仍旧只认浏览器会话：推理密钥 403，2026-10-18 实测。）
+所以主路径是照抄官方数字，只有这个接口失败时才退回「用量接口 + 本地推算」。
 
 ### 令牌怎么来（device flow，一次性）
 
@@ -167,6 +177,6 @@ dsh plugin --profile desktop install      # dsh 命令：应用菜单 → Manage
 ## 依赖与边界
 
 - 零 npm 依赖；host 半边只用 `node:crypto` / `node:fs` / `node:os` / `node:path` / `node:url`。
-- 网络只请求 `https://opencode.ai/console/api/usage/models`，用本机凭据服务里的 `OPENCODE_GO_API_KEY`（密钥不出宿主进程）。
+- 网络只请求 `https://opencode.ai/console/api/go/status`（主路径）与 `…/console/api/usage/models`、`…/console/api/billing/payment-attempts`（兜底），用本机凭据服务里的 `OPENCODE_GO_API_KEY`（密钥不出宿主进程）。
 - 三条自有路由都做 loopback 守卫（非回环地址 403），与 dsh-balance-widget 的做法一致。
 - 本插件只读 `dsh-balance-widget` 的两个 lib 文件并（在允许的情形下）写这两个文件，不碰该插件的 `package.json`（版本号保持与官方一致）。
