@@ -1,16 +1,17 @@
 {
   "package": "dsh-balance-widget",
-  "version": "0.6.3",
-  "source": "npm dsh-balance-widget@0.6.3",
-  "note": "pristine = SHA256 of the file exactly as published on npm 0.6.3. previous = SHA256 of an older revision of OUR OWN patch (so an upgraded payload can replace it). payload/lib holds the patched file we ship. The self-heal writes the payload back only while the installed file matches pristine or a previous payload; anything else (a real upstream release) is left untouched. The macOS revision of the patch (index.js 4d62fa96…, client.js c2718e60…: the 2026-10-17 session-anchoring build, whose only delta from the payload is the official single-line sessionsRoot()) is recorded in previous so a Mac install upgrades cleanly instead of reporting unknown-version.",
+  "version": "0.6.4",
+  "source": "npm dsh-balance-widget@0.6.4",
+  "note": "pristine = SHA256 of the file exactly as published on npm 0.6.4. previous = SHA256 of an older revision of OUR OWN patch (so an upgraded payload can replace it). payload/lib holds the patched file we ship. The self-heal writes the payload back only while the installed file matches pristine or a previous payload; anything else (a real upstream release) is left untouched. 2026-10-21: rebased onto 0.6.4 (client.js unchanged upstream; index.js gained the search-request fee and compaction/summary accounting).",
   "files": {
     "lib/index.js": {
-      "pristine": "52f560a634da06e50eb8413149e1a9735a61191d17511bb8ae83d151e0f42a90",
+      "pristine": "1bb99d9b1ca3087f856fa02032dbc5e8177776a18d56c66b35bae8c6e06ae820",
       "previous": [
         "171387fa13ef3c5f10101fc5de0c512f337b39a119534581751c79153573433a",
-        "4d62fa9608fae91817c2bf5ea7f28ae8031d70cf1d41e3b21dd3a7ac121f8326"
+        "4d62fa9608fae91817c2bf5ea7f28ae8031d70cf1d41e3b21dd3a7ac121f8326",
+        "6078473be488f09cf5541158dd86f58deb16b2870cfbfc49aba407414e337608"
       ],
-      "payload": "6078473be488f09cf5541158dd86f58deb16b2870cfbfc49aba407414e337608"
+      "payload": "2e556251371fdbf7b4741de4b70ba7ac5b01c40edde4361a996e562377188683"
     },
     "lib/client.js": {
       "pristine": "7beb1139e8d739090ec2edb121b1fe9bf8bc5c09fba8e3a6ca4305b0fa83b0ea",

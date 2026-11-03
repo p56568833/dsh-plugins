@@ -35,8 +35,9 @@
 
 ```
 dsh-plugins/
-├─ plugins/                 # 8 个自写插件（可直接装）
+├─ plugins/                 # 9 个自写插件（前 8 个直接装，最后 1 个是余额卡片的补丁插件，单独装）
 │  ├─ dsh-approval-clear/
+│  ├─ dsh-balance-widget-patch/  # 给 dsh-balance-widget 打补丁（Go 额度模式 + 自愈）
 │  ├─ dsh-claude-style-addons/
 │  ├─ dsh-cost-balance/
 │  ├─ dsh-market-sidebar/
@@ -62,6 +63,7 @@ dsh-plugins/
 | 插件 | 版本 | 作用 |
 | --- | --- | --- |
 | `dsh-approval-clear` | 0.2.0 | 审批卡片简化：操作说明、查看详情、拒绝/允许一次 |
+| `dsh-balance-widget-patch` | 0.2.1 | 余额卡片补丁：外加「余额 ⇄ OpenCode Go 额度」模式切换，并在 `dsh-balance-widget` 重装/升级后自动把补丁写回去（需先装 `dsh-balance-widget`） |
 | `dsh-claude-style-addons` | 0.6.0 | Claude Style 皮肤补丁：中文问候语、鲸鱼娘吉祥物、余额卡片、行内代码配色（依赖 `dsh-claude-style`） |
 | `dsh-cost-balance` | 0.1.0 | 输入框上方实时显示本次对话花费与账户余额 |
 | `dsh-market-sidebar` | 0.1.0 | 侧栏「插件市场」「订阅」入口 |
@@ -165,7 +167,7 @@ cd ~/Desktop/dsh-plugins     # 或 clone 到任意位置
 | `dsh-image-gen` | 0.9.1 | 生图/改图工作台 | `chatgpt-sub` 需要在新机器重新 OAuth 登录 |
 | `dsh-plugin-subscriptions` | 0.9.9 | 订阅账号中转 | 在 `0.2.1-rc.2` 上需要版本豁免，见下 |
 | `dsh-status-rotator` | 0.37.0 | 状态轮播 | 设置不随仓库迁移 |
-| `dsh-balance-widget` | 0.6.3 | 余额/花费卡片 | **本机打过补丁**，重装后需重打 |
+| `dsh-balance-widget` | 0.6.4 | 余额/花费卡片 | 补丁由 `plugins/dsh-balance-widget-patch` 提供（含 Go 额度模式，重装后自动写回） |
 | `dshmarket` | 1.66.35 | 可视化插件市场 | 也可用它装上面的插件 |
 | `@modusensus/dsh-mneme` | 0.9.0 | 跨会话记忆库 | 本地向量运行时可选，首次启用会下载模型（体积较大） |
 
@@ -180,24 +182,29 @@ cd ~/Desktop/dsh-plugins     # 或 clone 到任意位置
 
 内容含义是「允许 `dsh-plugin-subscriptions@0.9.9` 在 `0.2.1-rc.2` 上运行」。也可以按插件页提示走「版本豁免 → 接受风险」。豁免只影响这一对版本，升级后要重新确认。
 
-### 6.2 `dsh-balance-widget` 的本机补丁
+### 6.2 `dsh-balance-widget` 的补丁（插件形式，推荐）
 
-补丁内容：修复会话锚定（DSH 0.2.x 去掉了 sessions 快照的 `current` 字段）+ 把子代理/团队成员的花费并入「本会话 / 今日」。
+补丁内容：修复会话锚定（DSH 0.2.x 去掉了 sessions 快照的 `current` 字段）、把子代理/团队成员的花费并入「本会话 / 今日」，并加一个「余额 ⇄ OpenCode Go 额度」模式切换（卡片弹层顶部，切到额度后显示三条窗口的已用百分比与重置倒计时）。
 
-重装或升级 `dsh-balance-widget` 之后补丁会丢，需要重打。需要 Git for Windows（`git apply`）：
+补丁已做成**独立插件** `plugins/dsh-balance-widget-patch`，自带自愈：`dsh-balance-widget` 被重装或升级后，插件会把成品文件写回去；上游真发新版则一概不碰（只记状态）。
 
-```powershell
-cd C:\dsh-plugins
-powershell -ExecutionPolicy Bypass -File .\install\apply-balance-patch.ps1
+装法（先按上表装好 `dsh-balance-widget@0.6.4`）：
+
+```bash
+cd <仓库路径>/plugins/dsh-balance-widget-patch
+node tools/profile.mjs add --profile desktop   # 改 profile 的 package.json（改前备份）
+dsh plugin --profile desktop install           # 落 node_modules 链接
 ```
 
-手工等价命令：
+然后完全退出 DSH（macOS 用 Cmd+Q）再打开，补丁会在启动后自动写回。想确认：
 
-```powershell
-git -C "$env:USERPROFILE\.dsh\profiles\desktop\node_modules\dsh-balance-widget" apply "C:\dsh-plugins\third-party\patches\dsh-balance-widget-0.6.3-subagent-cost.patch"
+```bash
+curl -s http://127.0.0.1:63676/api/dsh-quota/status
 ```
 
-> 只对 `0.6.3` 有效。该补丁已在本机验证：对 npm 上的 `dsh-balance-widget@0.6.3` 原始包可干净应用。
+`status` 的取值含义、`goMode` 等配置项、离线自检（`node tools/verify.mjs`）见 `plugins/dsh-balance-widget-patch/README.md`。
+
+> 只想手动打一次补丁、不想装插件的话，旧做法仍然可用：`install/apply-balance-patch.ps1`（Windows）或 `git apply third-party/patches/dsh-balance-widget-0.6.3-subagent-cost.patch`。但那份补丁只对 `0.6.3` 有效，升级到 `0.6.4` 后请用插件形式。
 
 ---
 

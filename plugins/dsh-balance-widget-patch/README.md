@@ -1,6 +1,6 @@
 # dsh-balance-widget-patch — 余额卡片补丁
 
-给第三方插件 [`dsh-balance-widget`](https://github.com/LL-cmyk-so/dsh-balance-widget)（0.6.3）打的**本机补丁**，做成一个独立插件：
+给第三方插件 [`dsh-balance-widget`](https://github.com/LL-cmyk-so/dsh-balance-widget)（0.6.4）打的**本机补丁**，做成一个独立插件：
 
 1. **「余额 ⇄ OpenCode Go 额度」模式切换** —— 侧栏底部那张卡片的弹层顶部多一个小切换按钮。切到「额度」后卡片不再显示 DeepSeek 的 ¥ 余额，也不再显示 Go 额度的美元数字，改为**已用百分比 + 绿色进度条**：弹层里三档（5 小时 / 本周 / 账期）各是「标签 … 16%」加一条绿色进度条（进度条右侧是小字的重置倒计时），底下再补一行「今日已用 ¥x.xx」（读今日所有工作区的费用合计）；侧栏那张卡片本身则在 5 小时额度上显示百分比 + 一条迷你进度条。
 2. **补丁自愈** —— 补丁以成品文件（`payload/`）随本包发布。`dsh-balance-widget` 被重装或更新后，`node_modules` 里的文件会被换回官方原版，本插件会在启动时 / 安装事件后 / 每 10 分钟巡检一次，把成品文件写回去。**上游发新版也不会被静默覆盖**：文件指纹既不是官方原版、也不是我们自己的成品时，插件一概不碰，只把状态记下来。
@@ -12,9 +12,10 @@
 
 | 位置 | 内容 |
 | --- | --- |
-| `payload/lib/index.js` | dsh-balance-widget 0.6.3 + 原有补丁（Windows 会话目录、会话锚定、子代理成本） |
+| `payload/lib/index.js` | dsh-balance-widget 0.6.4 + 原有补丁（Windows 会话目录、会话锚定、子代理成本） |
 | `payload/lib/client.js` | 同上 + 额度模式界面（切换按钮、额度行、文案） |
-| `patches/dsh-balance-widget-0.6.3.patch` | 上面两份相对 npm 官方 0.6.3 的统一 diff（给人看 / 给人 rebase） |
+| `patches/dsh-balance-widget-0.6.4.patch` | 上面两份相对 npm 官方 0.6.4 的统一 diff（给人看 / 给人 rebase） |
+| `patches/dsh-balance-widget-0.6.3.patch` | 上一版（0.6.3）的补丁，留作历史记录 / rebase 参考 |
 | `targets.json` | 官方原版（`pristine`）与旧成品（`previous`）的 SHA256；决定"什么情况下才允许写回" |
 | `index.js` | 自愈 + `/api/dsh-quota/go` + `/api/dsh-quota/status` + `/api/dsh-quota/probe` |
 | `tools/verify.mjs` | 自检：payload / targets.json / patch 不许漂移；补丁打到官方原版上必须逐字节还原 payload |
@@ -180,3 +181,8 @@ dsh plugin --profile desktop install      # dsh 命令：应用菜单 → Manage
 - 网络只请求 `https://opencode.ai/console/api/go/status`（主路径）与 `…/console/api/usage/models`、`…/console/api/billing/payment-attempts`（兜底），用本机凭据服务里的 `OPENCODE_GO_API_KEY`（密钥不出宿主进程）。
 - 三条自有路由都做 loopback 守卫（非回环地址 403），与 dsh-balance-widget 的做法一致。
 - 本插件只读 `dsh-balance-widget` 的两个 lib 文件并（在允许的情形下）写这两个文件，不碰该插件的 `package.json`（版本号保持与官方一致）。
+
+
+## 更新记录
+
+- **2026-10-21 · rebase 到 0.6.4**：`dsh-balance-widget` 19:48 升到 0.6.4 后，自愈按设计不碰未知版本，卡片退回官方原版（额度模式消失）。已把补丁 rebase 到 0.6.4：`client.js` 上游没变，直接复用；`index.js` 三方合并，保住了我们的会话锚定 / 子代理成本，同时接上游 0.6.4 的三处变化（2026-11-01 起 web_search 每次请求 ¥0.005、`compaction/summary` 计入日 / 工作区合计但不计入「最近一次提问」、`lastTurnCost` 跳过 compaction 样本）。`targets.json` 的 pristine 换成 0.6.4，旧成品 0.6.3 的哈希留在 `previous`。

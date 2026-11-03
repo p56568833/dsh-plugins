@@ -1,7 +1,7 @@
 /**
  * 自检：payload / targets.json / patches 三者不许漂移。
  *
- *   node tools/verify.mjs [--pristine <解包的 dsh-balance-widget@0.6.3 目录>]
+ *   node tools/verify.mjs [--pristine <解包的 dsh-balance-widget@<targets.version> 目录>]
  *
  * 有 --pristine 时会做最硬的那条断言：把 patches/ 里的补丁打到 pristine 副本上，
  * 结果必须和 payload/ 逐字节相同（SHA256 相等）。没给 --pristine 就跳过依赖

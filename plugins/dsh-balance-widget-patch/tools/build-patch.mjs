@@ -1,7 +1,7 @@
 /**
- * 从「npm 官方 0.6.3 解包目录」与 payload/ 生成人可读的统一 diff。
+ * 从「npm 官方 dsh-balance-widget 解包目录」与 payload/ 生成人可读的统一 diff。
  *
- *   node tools/build-patch.mjs --pristine <解包后的 dsh-balance-widget@0.6.3 目录> [--out patches/xxx.patch]
+ *   node tools/build-patch.mjs --pristine <解包后的 dsh-balance-widget@<targets.version> 目录> [--out patches/xxx.patch]
  *
  * 先用 targets.json 里的 pristine 哈希核对 <dir>：对不上就拒绝生成，免得拿错版本
  * 做出一个看着对、其实错的补丁。再用 git diff --no-index 出统一 diff（仓库既有的
@@ -28,7 +28,7 @@ const outFile = outAt === -1
 	: resolve(args[outAt + 1]);
 
 if (pristineDir === void 0 || !existsSync(join(pristineDir, "package.json"))) {
-	console.error("用法：node tools/build-patch.mjs --pristine <dsh-balance-widget@0.6.3 解包目录> [--out <补丁路径>]");
+	console.error(`用法：node tools/build-patch.mjs --pristine <dsh-balance-widget@${targets.version} 解包目录> [--out <补丁路径>]`);
 	process.exit(2);
 }
 
@@ -106,7 +106,7 @@ try {
 	const header = [
 		`# ${targets.package} ${targets.version} — 本机补丁（Windows 会话目录 + 会话锚定 + 子代理成本 + Go 额度模式）`,
 		"#",
-		"# 这是给人看的记录：内容 = payload/ 相对 npm 官方 0.6.3 的差异。",
+		`# 这是给人看的记录：内容 = payload/ 相对 npm 官方 ${targets.version} 的差异。`,
 		"# 应用方式（等价于插件在启动时自动做的事，插件用成品文件直接写回，不依赖 git）：",
 		`#   git apply -p1 -d <profile>/node_modules/${targets.package} < 本文件`,
 		"#",
