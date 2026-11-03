@@ -190,6 +190,9 @@ cd ~/Desktop/dsh-plugins     # 或 clone 到任意位置
 
 装法（先按上表装好 `dsh-balance-widget@0.6.4`）：
 
+> **不想碰终端的话**：在本页点 **Code → Download ZIP** 解压，先在插件页「添加插件」里输入 `dsh-balance-widget@0.6.4` 装上并启用，再用「添加插件 → 绝对本地路径」选中解压出来的 `dsh-balance-widget-patch` 文件夹，启用后完全退出 DSH（Cmd+Q）再打开即可；补丁会在启动后自己写回去。
+
+
 ```bash
 cd <仓库路径>/plugins/dsh-balance-widget-patch
 node tools/profile.mjs add --profile desktop   # 改 profile 的 package.json（改前备份）
